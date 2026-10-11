@@ -244,7 +244,11 @@ class Orchestrator:
                     d = mandi_result.data
                     market = d.get("market") or entities.market or entities.district or entities.state
                     date = d.get("arrival_date") or "latest returned date"
-                    parts.append(f"सरकारी बाजार डेटा के अनुसार {market} में {d['commodity']} का मॉडल भाव ₹{d['modal_price']} प्रति क्विंटल है (डेटा दिनांक {date})।")
+                    today = datetime.now(ZoneInfo("Asia/Kolkata")).date().isoformat()
+                    if wants_today and date != today:
+                        parts.append(f"सरकारी स्रोत में आज का रिकॉर्ड उपलब्ध नहीं मिला। सबसे हाल का सत्यापित {market} भाव {d['commodity']} के लिए ₹{d['modal_price']} प्रति क्विंटल है (डेटा दिनांक {date})।")
+                    else:
+                        parts.append(f"सरकारी बाजार डेटा के अनुसार {market} में {d['commodity']} का मॉडल भाव ₹{d['modal_price']} प्रति क्विंटल है (डेटा दिनांक {date})।")
                 else:
                     parts.append("सरकारी मंडी स्रोत से इस अनुरोध के लिए विश्वसनीय भाव नहीं मिला, इसलिए मैं भाव का अनुमान नहीं दूँगा।")
                 if weather_result.ok:
@@ -322,9 +326,14 @@ class Orchestrator:
                 d = result.data
                 market = d.get("market") or entities.market or entities.district or entities.state
                 date = d.get("arrival_date") or "latest returned date"
+                today = datetime.now(ZoneInfo("Asia/Kolkata")).date().isoformat()
+                if wants_today and date != today:
+                    reply = f"सरकारी स्रोत में आज का रिकॉर्ड उपलब्ध नहीं मिला। सबसे हाल का सत्यापित {market} भाव {d['commodity']} के लिए ₹{d['modal_price']} प्रति क्विंटल है (डेटा दिनांक {date})।"
+                else:
+                    reply = f"सरकारी बाजार डेटा के अनुसार {market} में {d['commodity']} का मॉडल भाव ₹{d['modal_price']} प्रति क्विंटल है (डेटा दिनांक {date})।"
                 return self._outcome(
                     intent=intent,
-                    reply=f"सरकारी बाजार डेटा के अनुसार {market} में {d['commodity']} का मॉडल भाव ₹{d['modal_price']} प्रति क्विंटल है (डेटा दिनांक {date})।",
+                    reply=reply,
                     result=result,
                     tool_name="get_mandi_price",
                 )
