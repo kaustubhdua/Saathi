@@ -377,6 +377,24 @@ class Orchestrator:
                 tool_name="get_mandi_price",
             )
 
+        if intent == "scheme":
+            lowered = message.casefold()
+            scheme_id = None
+            if any(term in lowered for term in ("pmfby", "fasal bima", "crop insurance", "फसल बीमा")):
+                scheme_id = "pmfby"
+            elif any(term in lowered for term in ("pm-kisan", "pm kisan", "किसान", "किसान योजना")):
+                scheme_id = "pm-kisan"
+            scheme = get_scheme(scheme_id) if scheme_id else None
+            if scheme is not None:
+                reply, result = _catalogue_scheme_response(scheme)
+                return self._outcome(
+                    intent="scheme",
+                    reply=reply,
+                    result=result,
+                    confidence=0.95,
+                    tool_name="get_scheme_catalog",
+                )
+
         if intent == "scheme" and any(x in message.casefold() for x in ("किसान", "pm-kisan", "pm kisan", "किसान योजना")):
             result = await self.scheme.explain()
             return self._outcome(
