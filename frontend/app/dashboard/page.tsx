@@ -401,7 +401,7 @@ export default function Dashboard() {
               <ChevronDown size={14} />
             </button>
           </div>
-          <div className="consent-note"><ShieldCheck size={14} /> In production, consent, opt-out, quiet hours and deletion must be persisted server-side.</div>
+          <div className="consent-note"><ShieldCheck size={14} /> Household memory is intentionally not active in this prototype. Consent toggles are demo-only and do not persist data. In production, consent, opt-out, quiet hours and deletion must be persisted server-side.</div>
         </section>
 
         <section className="simulation-card" aria-labelledby="simulation-title">
