@@ -273,7 +273,7 @@ async def voice_turn(
     latitude: float | None = Form(None),
     longitude: float | None = Form(None),
     location_label: str | None = Form(None),
- ) -> VoiceTurnResponse:
+) -> VoiceTurnResponse:
     _authorize_api_request(x_saathi_api_key)
     key = request.client.host if request.client else "unknown"
     if not limiter.allow(f"voice:{key}"):
