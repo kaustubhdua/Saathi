@@ -34,6 +34,21 @@ class AgentOutcome:
     results: tuple[ToolResult, ...] = ()
 
 
+def _weather_reply(data: dict[str, object], message: str) -> str:
+    lowered = message.casefold()
+    if any(term in lowered for term in ("कल", "tomorrow", "tomorrow's")) and data.get("tomorrow_rain_probability_pct") is not None:
+        probability = data["tomorrow_rain_probability_pct"]
+        date = data.get("tomorrow_date") or "कल"
+        rainfall = data.get("tomorrow_precipitation_mm")
+        extra = f" और अनुमानित वर्षा {rainfall} mm" if rainfall is not None else ""
+        return f"उपलब्ध मौसम forecast के अनुसार {date} को बारिश की अधिकतम संभावना {probability}% है{extra}।"
+    probability = data.get("rain_probability_pct", data.get("next_24h_rain_probability_max", 0))
+    temperature = data.get("temperature_c", "उपलब्ध नहीं")
+    if any(term in lowered for term in ("आज", "today", "aaj")):
+        return f"उपलब्ध मौसम जानकारी के अनुसार वर्तमान तापमान {temperature}°C है और अगले 24 घंटे में बारिश की अधिकतम संभावना {probability}% है।"
+    return f"उपलब्ध मौसम जानकारी के अनुसार तापमान {temperature}°C है और अगले 24 घंटे में बारिश की अधिकतम संभावना {probability}% है。"
+
+
 class ToolPolicy:
     """Server-side capability gate: intent may suggest, policy decides what can run."""
 
@@ -131,10 +146,9 @@ class Orchestrator:
                     result = await self.weather.forecast(latitude=latitude, longitude=longitude)
                     if result.ok:
                         data = result.data
-                        probability = data.get("rain_probability_pct", data.get("next_24h_rain_probability_max", 0))
                         return self._outcome(
                             intent="farming",
-                            reply=f"उपलब्ध मौसम जानकारी के अनुसार तापमान {data['temperature_c']}°C है और अगले 24 घंटे में बारिश की अधिकतम संभावना {probability}% है।",
+                            reply=_weather_reply(data, message),
                             result=result,
                             confidence=0.9,
                             tool_name="get_weather",
@@ -235,8 +249,7 @@ class Orchestrator:
                     parts.append("सरकारी मंडी स्रोत से इस अनुरोध के लिए विश्वसनीय भाव नहीं मिला, इसलिए मैं भाव का अनुमान नहीं दूँगा।")
                 if weather_result.ok:
                     d = weather_result.data
-                    probability = d.get("rain_probability_pct", d.get("next_24h_rain_probability_max", 0))
-                    parts.append(f"उपलब्ध मौसम जानकारी के अनुसार तापमान {d['temperature_c']}°C है और अगले 24 घंटे में बारिश की अधिकतम संभावना {probability}% है।")
+                    parts.append(_weather_reply(d, message))
                 else:
                     parts.append("मौसम की जानकारी अभी उपलब्ध नहीं है, इसलिए मैं बारिश की संभावना का अनुमान नहीं दूँगा।")
                 return self._outcome(
@@ -260,10 +273,9 @@ class Orchestrator:
                 result = await self.weather.forecast(latitude=location.latitude, longitude=location.longitude)
                 if result.ok:
                     d = result.data
-                    probability = d.get("rain_probability_pct", d.get("next_24h_rain_probability_max", 0))
                     return self._outcome(
                         intent=intent,
-                        reply=f"उपलब्ध मौसम जानकारी के अनुसार तापमान {d['temperature_c']}°C है और अगले 24 घंटे में बारिश की अधिकतम संभावना {probability}% है।",
+                        reply=_weather_reply(d, message),
                         result=result,
                         tool_name="get_weather",
                     )
