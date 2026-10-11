@@ -50,6 +50,37 @@ def _weather_reply(data: dict[str, object], message: str) -> str:
     return f"उपलब्ध मौसम जानकारी के अनुसार तापमान {temperature}°C है और अगले 24 घंटे में बारिश की अधिकतम संभावना {probability}% है。"
 
 
+def _catalogue_scheme_response(scheme) -> tuple[str, ToolResult]:
+    eligibility = " ".join(scheme.eligibility_notes)
+    documents = ", ".join(scheme.required_documents)
+    reply = (
+        f"{scheme.name}: {scheme.summary} "
+        f"पात्रता: {eligibility} "
+        f"संभावित दस्तावेज़: {documents}. "
+        f"स्रोत {scheme.source_checked_on} को समीक्षा किया गया था। "
+        f"अंतिम पात्रता, राज्य/सीजन की शर्तें और समय-सीमा आधिकारिक पोर्टल पर जाँचें: "
+        f"{scheme.application_url}"
+    )
+    result = ToolResult(
+        ok=True,
+        data={
+            "scheme_id": scheme.scheme_id,
+            "name": scheme.name,
+            "eligibility_notes": list(scheme.eligibility_notes),
+            "required_documents": list(scheme.required_documents),
+            "application_url": scheme.application_url,
+            "source_checked_on": scheme.source_checked_on,
+        },
+        source=SourceRecord(
+            name=scheme.name,
+            url=scheme.source_url,
+            retrieved_at=datetime.now(timezone.utc),
+            freshness_note=f"Catalogue reviewed {scheme.source_checked_on}; verify current official rules.",
+        ),
+    )
+    return reply, result
+
+
 class ToolPolicy:
     """Server-side capability gate: intent may suggest, policy decides what can run."""
 
