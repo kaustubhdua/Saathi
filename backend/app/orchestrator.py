@@ -392,7 +392,7 @@ class Orchestrator:
                     reply=reply,
                     result=result,
                     confidence=0.95,
-                    tool_name="get_scheme_catalog",
+                    tool_name="get_pmkisan_info" if scheme_id == "pm-kisan" else "get_scheme_catalog",
                 )
 
         if intent == "scheme" and any(x in message.casefold() for x in ("किसान", "pm-kisan", "pm kisan", "किसान योजना")):
