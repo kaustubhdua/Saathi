@@ -180,7 +180,12 @@ def scheme_detail(scheme_id: str) -> dict[str, object]:
 
 
 @app.post("/api/v1/conversation", response_model=ConversationResponse)
-async def conversation(payload: ConversationRequest, request: Request) -> ConversationResponse:
+async def conversation(
+    payload: ConversationRequest,
+    request: Request,
+    x_saathi_api_key: str | None = Header(default=None),
+) -> ConversationResponse:
+    _authorize_api_request(x_saathi_api_key)
     key = request.client.host if request.client else "unknown"
     if not limiter.allow(key):
         raise HTTPException(status_code=429, detail="rate_limited")
@@ -216,7 +221,12 @@ async def conversation(payload: ConversationRequest, request: Request) -> Conver
 
 
 @app.post("/api/v1/agent", response_model=ConversationResponse)
-async def agent(payload: AgentRequest, request: Request) -> ConversationResponse:
+async def agent(
+    payload: AgentRequest,
+    request: Request,
+    x_saathi_api_key: str | None = Header(default=None),
+) -> ConversationResponse:
+    _authorize_api_request(x_saathi_api_key)
     key = request.client.host if request.client else "unknown"
     if not limiter.allow(f"agent:{key}"):
         raise HTTPException(status_code=429, detail="rate_limited")
