@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 from .config import get_settings
 from .escalation import EscalationPolicy, EscalationReason
@@ -181,6 +183,8 @@ class Orchestrator:
             # as "संभावना" accidentally match the mandi signal "भाव".
             wants_weather = any(contains_term(x) for x in ("मौसम", "बारिश", "weather", "rain"))
             wants_mandi = any(contains_term(x) for x in ("मंडी", "mandi", "भाव", "रेट", "price", "bhav"))
+            wants_tomorrow = any(x in lowered for x in ("कल", "tomorrow", "tomorrow's"))
+            wants_today = any(x in lowered for x in ("आज", "today", "aaj"))
             if wants_weather and wants_mandi:
                 location = context.location
                 if location is None:
