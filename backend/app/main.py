@@ -113,6 +113,24 @@ def readiness() -> dict[str, object]:
     }
 
 
+def _authorize_api_request(supplied_key: str | None) -> None:
+    if settings.demo_mode and settings.app_env.lower() != "production":
+        return
+    if not settings.api_auth_token:
+        raise HTTPException(status_code=503, detail="api_authentication_not_configured")
+    if not supplied_key or not compare_digest(supplied_key, settings.api_auth_token):
+        raise HTTPException(status_code=401, detail="api_authentication_required")
+
+
+def _authorize_telephony_stream(supplied_token: str | None) -> None:
+    if settings.demo_mode and settings.app_env.lower() != "production":
+        return
+    if not settings.telephony_stream_token:
+        raise HTTPException(status_code=503, detail="telephony_stream_auth_not_configured")
+    if not supplied_token or not compare_digest(supplied_token, settings.telephony_stream_token):
+        raise HTTPException(status_code=401, detail="telephony_stream_not_authorized")
+
+
 def _source(outcome):
     if outcome.result and outcome.result.source:
         return {
