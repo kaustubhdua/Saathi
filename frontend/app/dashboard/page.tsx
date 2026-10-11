@@ -79,7 +79,6 @@ export default function Dashboard() {
   const [apiReady, setApiReady] = useState(false);
   const [capabilities, setCapabilities] = useState<ReadyCapabilities>({});
   const [demoMode, setDemoMode] = useState(true);
-  const [followUpStatus, setFollowUpStatus] = useState<"idle" | "pending" | "due">("idle");
 
   useEffect(() => {
     const controller = new AbortController();
@@ -267,9 +266,6 @@ export default function Dashboard() {
 
   const run = () => runAgent();
 
-  const createFollowUpSimulation = () => setFollowUpStatus("pending");
-  const simulateThreeDaysLater = () => setFollowUpStatus("due");
-
   return (
     <main className="command-shell">
       <div className="command-wrap">
@@ -396,26 +392,6 @@ export default function Dashboard() {
             </button>
           </div>
           <div className="consent-note"><ShieldCheck size={14} /> Household memory is intentionally not active in this prototype. Consent toggles are demo-only and do not persist data. In production, consent, opt-out, quiet hours and deletion must be persisted server-side.</div>
-        </section>
-
-        <section className="simulation-card" aria-labelledby="simulation-title">
-          <div className="simulation-copy">
-            <span className="panel-kicker">FOLLOW-UP · PREVIEW</span>
-            <h3 id="simulation-title">Proactive follow-up, without fake persistence.</h3>
-            <p>This preview shows the future follow-up workflow. It makes no database write and places no external call.</p>
-          </div>
-          <div className="simulation-flow">
-            <button type="button" onClick={createFollowUpSimulation} disabled={followUpStatus !== "idle"}>Create missing-document follow-up</button>
-            <span>→</span>
-            <button type="button" onClick={simulateThreeDaysLater} disabled={followUpStatus !== "pending"}>Simulate 3 days later</button>
-            <span className={`simulation-state ${followUpStatus}`}>{followUpStatus === "idle" ? "Not scheduled" : followUpStatus === "pending" ? "PREVIEW · pending" : "PREVIEW · due now"}</span>
-          </div>
-          {followUpStatus === "due" && (
-            <div className="simulation-result">
-              <PhoneCall size={15} />
-              <div><strong>Outbound callback workflow is due.</strong><small>No external call was placed. Persistence and outbound calling are not enabled in this prototype.</small></div>
-            </div>
-          )}
         </section>
 
         <section className="fallback-card" aria-labelledby="fallback-title">
