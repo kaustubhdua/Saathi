@@ -113,6 +113,15 @@ def _authorize_api_request(supplied_key: str | None) -> None:
     if not supplied_key or not hmac.compare_digest(supplied_key, settings.api_auth_token):
         raise HTTPException(status_code=401, detail="api_authentication_required")
 
+def _authorize_telephony_stream(supplied_token: str | None) -> None:
+    """Require a configured admission token for every non-demo stream."""
+    if not settings.telephony_stream_token:
+        if settings.demo_mode:
+            return
+        raise HTTPException(status_code=503, detail="telephony_stream_auth_not_configured")
+    if not supplied_token or not hmac.compare_digest(supplied_token, settings.telephony_stream_token):
+        raise HTTPException(status_code=401, detail="telephony_stream_not_authorized")
+
 
 def _source(outcome):
     if outcome.result and outcome.result.source:
@@ -276,11 +285,13 @@ async def telephony_stream(websocket: WebSocket) -> None:
     if not settings.exotel_stream_url or not settings.sarvam_api_key:
         await websocket.close(code=1013, reason="telephony_provider_not_configured")
         return
-    if settings.telephony_stream_token:
-        supplied_token = websocket.query_params.get("token", "")
-        if not hmac.compare_digest(supplied_token, settings.telephony_stream_token):
-            await websocket.close(code=1008, reason="telephony_stream_not_authorized")
-            return
+    supplied_token = websocket.query_params.get("token", "")
+    try:
+        _authorize_telephony_stream(supplied_token)
+    except HTTPException as exc:
+        code = 1013 if exc.status_code == 503 else 1008
+        await websocket.close(code=code, reason=str(exc.detail))
+        return
 
     await websocket.accept()
     try:
