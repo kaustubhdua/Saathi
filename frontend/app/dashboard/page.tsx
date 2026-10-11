@@ -75,7 +75,6 @@ export default function Dashboard() {
   const recognitionRef = useRef<BrowserSpeechRecognition | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const [memoryConsent, setMemoryConsent] = useState(false);
-  const [reminderConsent, setReminderConsent] = useState(false);
   const [apiOnline, setApiOnline] = useState(false);
   const [apiReady, setApiReady] = useState(false);
   const [capabilities, setCapabilities] = useState<ReadyCapabilities>({});
@@ -388,16 +387,11 @@ export default function Dashboard() {
 
         <section className="consent-card" aria-labelledby="consent-title">
           <div className="context-title"><div><span className="panel-kicker">HOUSEHOLD MEMORY</span><h3 id="consent-title">Remember only with permission.</h3></div><ShieldCheck size={18} /></div>
-          <p className="consent-intro">Saathi separates useful continuity from silent surveillance. Each future memory/reminder capability has its own consent boundary.</p>
+          <p className="consent-intro">Saathi separates useful continuity from silent surveillance. Household memory remains a prototype-only capability until server-side consent persistence is enabled.</p>
           <div className="consent-options">
             <button type="button" className={`consent-option ${memoryConsent ? "on" : ""}`} aria-pressed={memoryConsent} onClick={() => setMemoryConsent((value) => !value)}>
               <span className="toggle">{memoryConsent ? <CheckCircle2 size={14} /> : <X size={14} />}</span>
               <div><strong>Household memory</strong><small>{memoryConsent ? "Consented for this demo household" : "Not enabled"}</small></div>
-              <ChevronDown size={14} />
-            </button>
-            <button type="button" className={`consent-option ${reminderConsent ? "on" : ""}`} aria-pressed={reminderConsent} onClick={() => setReminderConsent((value) => !value)}>
-              <span className="toggle">{reminderConsent ? <CheckCircle2 size={14} /> : <X size={14} />}</span>
-              <div><strong>Outbound reminders</strong><small>{reminderConsent ? "Consent recorded in demo state" : "Not enabled"}</small></div>
               <ChevronDown size={14} />
             </button>
           </div>
