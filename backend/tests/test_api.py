@@ -117,3 +117,38 @@ def test_non_demo_api_requires_a_matching_server_token(monkeypatch):
         headers={"X-Saathi-API-Key": "test-only-secret"},
     )
     assert allowed.status_code == 200
+
+
+
+def test_production_telephony_stream_auth_fails_closed_without_token(monkeypatch):
+    import pytest
+    from fastapi import HTTPException
+    import app.main as main
+
+    monkeypatch.setattr(main.settings, "demo_mode", False)
+    monkeypatch.setattr(main.settings, "telephony_stream_token", None)
+    with pytest.raises(HTTPException) as exc:
+        main._authorize_telephony_stream(None)
+    assert exc.value.status_code == 503
+    assert exc.value.detail == "telephony_stream_auth_not_configured"
+
+
+def test_telephony_stream_auth_rejects_wrong_token_and_accepts_matching_token(monkeypatch):
+    import pytest
+    from fastapi import HTTPException
+    import app.main as main
+
+    monkeypatch.setattr(main.settings, "demo_mode", False)
+    monkeypatch.setattr(main.settings, "telephony_stream_token", "stream-test-secret")
+    with pytest.raises(HTTPException) as exc:
+        main._authorize_telephony_stream("wrong-secret")
+    assert exc.value.status_code == 401
+    main._authorize_telephony_stream("stream-test-secret")
+
+
+def test_demo_telephony_stream_can_run_without_admission_token(monkeypatch):
+    import app.main as main
+
+    monkeypatch.setattr(main.settings, "demo_mode", True)
+    monkeypatch.setattr(main.settings, "telephony_stream_token", None)
+    main._authorize_telephony_stream(None)
