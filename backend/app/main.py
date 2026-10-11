@@ -109,6 +109,8 @@ def readiness() -> dict[str, object]:
             "speech": speech,
             "weather": True,
             "documents": bool(settings.sarvam_api_key),
+            "api_operator_auth": bool(settings.api_auth_token),
+            "telephony_stream_auth": bool(settings.telephony_stream_token),
         },
     }
 
@@ -373,6 +375,14 @@ async def telephony_stream(websocket: WebSocket) -> None:
     streaming TTS, server VAD and cancellation-aware barge-in. Otherwise it
     retains the bounded-turn adapter as a safe fallback.
     """
+    supplied_token = websocket.query_params.get("token", "")
+    try:
+        _authorize_telephony_stream(supplied_token)
+    except HTTPException as exc:
+        code = 1013 if exc.status_code == 503 else 1008
+        await websocket.close(code=code, reason=str(exc.detail))
+        return
+
     if not settings.exotel_stream_url or not settings.sarvam_api_key:
         await websocket.close(code=1013, reason="telephony_provider_not_configured")
         return
