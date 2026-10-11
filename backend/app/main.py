@@ -27,7 +27,7 @@ app.add_middleware(
     allow_origins=[x.strip() for x in settings.cors_origins.split(",") if x.strip()],
     allow_credentials=True,
     allow_methods=["GET", "POST"],
-    allow_headers=["Content-Type", "Authorization", "X-Saathi-Signature", "X-Provider-Event-ID", "X-Correlation-ID"],
+    allow_headers=["Content-Type", "Authorization", "X-Saathi-Signature", "X-Saathi-API-Key", "X-Provider-Event-ID", "X-Correlation-ID"],
     expose_headers=["X-Correlation-ID"],
 )
 limiter = InMemoryRateLimiter()
