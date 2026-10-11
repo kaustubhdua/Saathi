@@ -267,10 +267,12 @@ async def voice_turn(
     audio: UploadFile = File(...),
     language: str = Form("hi"),
     household_id: str | None = Form(None),
+    x_saathi_api_key: str | None = Header(default=None),
     latitude: float | None = Form(None),
     longitude: float | None = Form(None),
     location_label: str | None = Form(None),
-) -> VoiceTurnResponse:
+ ) -> VoiceTurnResponse:
+    _authorize_api_request(x_saathi_api_key)
     key = request.client.host if request.client else "unknown"
     if not limiter.allow(f"voice:{key}"):
         raise HTTPException(status_code=429, detail="rate_limited")
