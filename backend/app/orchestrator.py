@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
 from .config import get_settings
@@ -10,9 +10,10 @@ from .escalation import EscalationPolicy, EscalationReason
 from .http_tools import DataGovMandiTool, OpenMeteoWeatherTool
 from .provider_adapters import GeminiToolRouter
 from .intent import classify_intent, extract_farming_entities
-from .provenance import ToolResult
+from .provenance import SourceRecord, ToolResult
 from .schemas import Intent, LocationContext
 from .tools import DemoMandiTool, DemoWeatherTool, PMKisanSchemeTool
+from .scheme_catalog import get_scheme
 
 
 @dataclass(frozen=True)
