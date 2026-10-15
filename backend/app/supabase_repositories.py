@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from uuid import UUID, uuid4
+from urllib.parse import quote
 
 import httpx
 
@@ -267,6 +268,7 @@ class SupabaseTaskRepository(_SupabaseRepository):
     async def create(self, task: Task) -> Task:
         household_uuid = self._uuid(task.household_id)
         idempotency_key = task.idempotency_key
+        encoded_idempotency_key = quote(idempotency_key, safe="")
         payload = {
             "household_id": household_uuid,
             "title": task.title,
@@ -282,7 +284,7 @@ class SupabaseTaskRepository(_SupabaseRepository):
                 raise
             rows = await self._request(
                 "GET",
-                f"saathi_pending_tasks?household_id=eq.{household_uuid}&idempotency_key=eq.{idempotency_key}&select=id,household_id,title,status,missing_requirements,scheduled_callback",
+                f"saathi_pending_tasks?household_id=eq.{household_uuid}&idempotency_key=eq.{encoded_idempotency_key}&select=id,household_id,title,status,missing_requirements,scheduled_callback",
             )
         if not rows:
             raise SupabaseRepositoryError("task_create_failed")
