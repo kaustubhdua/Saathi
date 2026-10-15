@@ -1,6 +1,6 @@
 # Server-side API proxy
 
-The dashboard uses same-origin `/backend/*` routes. The Next.js Node route forwards only the allowlisted readiness, agent-text and voice-turn endpoints and injects `X-Saathi-API-Key` from server-only `SAATHI_API_AUTH_TOKEN`.
+The dashboard uses same-origin `/backend/*` routes. The Next.js Node route forwards only allowlisted readiness, agent-text, voice-turn, purpose-specific consent, household task and user-entered memory endpoints. It injects `X-Saathi-API-Key` from server-only `SAATHI_API_AUTH_TOKEN` and adds verified household headers only after server-side OTP + household PIN checks.
 
 ## Required configuration
 
@@ -20,7 +20,8 @@ The dashboard uses same-origin `/backend/*` routes. The Next.js Node route forwa
 - Phone OTP login uses Supabase Auth SSR cookies. For signed-in users, the server verifies the Supabase user, requires a confirmed E.164 phone, then resolves the household through `saathi_household_memberships.auth_user_id`. A phone number alone never grants access, avoiding takeover if a number is recycled. The membership migration remains proposed outside active migration discovery until PR #58 is reconciled.
 - The proxy injects `X-Saathi-Verified-Identity` and `X-Saathi-Verified-Household` only after server-side verification; the backend validates both UUIDs and rejects client-supplied household IDs.
 - The consent API exposes only memory and outbound-call purpose booleans. Both start false; revoking memory relies on the existing database trigger to purge stored memory.
-- Task APIs and outbound-call operations remain unavailable through the public proxy. Phone OTP and consent require Supabase Auth/SMS and server-only secrets to be configured and tested.
+- Household task, consent and user-entered memory APIs are exposed only after server-side identity and household PIN verification; they fail closed while the membership migration or required secrets are unavailable. General conversation and voice remain usable without an account, but no household context is attached unless the user has completed verification.
+- Outbound-call operations remain unavailable through the public proxy. Scheduled reminders, automatic follow-up delivery and volunteer assignment are not enabled.
 - Production readiness reports `not_ready` when required API operator authentication is missing.
 
 ## Verification
@@ -29,7 +30,7 @@ CI runs `node --test tests/*.test.mjs` plus lint, TypeScript, the Next.js build 
 
 ## Household identity fail-closed behavior
 
-The backend rejects a client-supplied household identifier on text and voice interaction routes outside local demo mode. A household UUID is not an identity credential. Until a verified end-user identity provider and identity-to-household ownership check are integrated, production requests must omit household IDs; household-specific memory, tasks and consent APIs must not be exposed through the public proxy. This intentionally blocks household-personalized production workflows rather than silently trusting a client-supplied UUID.
+The backend rejects a client-supplied household identifier on text and voice interaction routes outside local demo mode. A household UUID is not an identity credential. PR #68 adds a Supabase Auth OTP + household PIN identity-to-household flow and server-side ownership check, but the required `saathi_household_memberships` table is still only a proposed migration. Household-specific routes therefore fail closed until PR #58's migration-history reconciliation is complete, the membership schema is reviewed/applied safely, and live identity/isolation tests pass. Do not treat this draft branch as production-enabled.
 
 
 ## Shared limiter verification
@@ -42,7 +43,7 @@ The automated proxy tests stub Redis and the API separately. They cover missing 
 - `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (or the existing public anon key) are public Auth client configuration.
 - `SUPABASE_URL` and `SUPABASE_SECRET_KEY` are server-only. The secret key must never use a `NEXT_PUBLIC_*` name and must never be serialized to a browser response.
 - Enable Supabase Phone Auth and configure SMS delivery in the project dashboard. This repository cannot provision the provider or prove delivery.
-- OTP send/verify limits in this code are process-local defense in depth. Supabase Auth rate limits and an edge/shared limiter remain required.
+- Production OTP/PIN requests use atomic Upstash Redis counters and require a configured trusted single-IP header. The process-local limiter is development/test fallback only. Supabase Auth's own rate limits and SMS provider controls remain additional defenses.
 
 
 ## Household workflow routes
