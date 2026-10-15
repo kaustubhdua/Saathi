@@ -35,3 +35,15 @@ test("rate-limit bucket storage stays bounded under high-cardinality IP input", 
   }
   assert.ok(_rateLimitBucketCountForTests() <= 2_000);
 });
+
+
+test("malformed X-Real-IP values cannot create unbounded distinct buckets", async () => {
+  setup();
+  globalThis.fetch = async () => Response.json({ status: "alive" });
+  let response;
+  for (let i = 0; i < 31; i += 1) {
+    response = await proxyRequest(req("health/live", {}, `not-an-ip-${i}`), ["health", "live"]);
+  }
+  assert.equal(response.status, 429);
+  assert.equal(_rateLimitBucketCountForTests(), 1);
+});
