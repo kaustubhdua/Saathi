@@ -51,6 +51,9 @@ test("proxy resolves household context server-side and protects consent routes",
 
 test("household PIN is separate, rate-limited and server-keyed", () => {
   assert.match(pinRoute, /isAuthRateLimited\(request, user\.phone, "pin"\)/);
+  assert.match(pinRoute, /isStrongHouseholdPin\(body\.pin\)/);
+  assert.match(identity, /const ascending = digits\.every/);
+  assert.match(identity, /const descending = digits\.every/);
   assert.match(pinRoute, /verifyHouseholdPin\(user\.id, body\.pin, existing\.pin_hash\)/);
   assert.match(pinRoute, /setHouseholdContextCookie\(user\.id, membership\.household_id\)/);
   assert.match(identity, /HOUSEHOLD_PIN_PEPPER/);
