@@ -8,7 +8,7 @@ Last verified: 2026-10-15 UTC
 - Telephony callback lifecycle and live-call safety gate: [PR #61](https://github.com/kaustubhdua/Saathi/pull/61), merged.
 - Dashboard keyboard accessibility and truthful status labels: [PR #63](https://github.com/kaustubhdua/Saathi/pull/63), merged.
 - Shared production rate limiting: [PR #64](https://github.com/kaustubhdua/Saathi/pull/64), merged; production requires configured Upstash Redis and a trusted single-IP header.
-- Phone OTP, household PIN, purpose-specific consent, household tasks and explicit memory: [PR #68](https://github.com/kaustubhdua/Saathi/pull/68), draft. Exact-head CI run #886 passed all five jobs on `edc29b1a7bcbff78f0e86e584ff688911fff7dd2`, including the active memory-consent lock/trigger regression test. Live Auth/SMS, migration-history and provider gates remain.
+- Phone OTP, household PIN, purpose-specific consent, household tasks and explicit memory: [PR #68](https://github.com/kaustubhdua/Saathi/pull/68), draft. Exact-head CI run #894 passed all five jobs on `ae17c5e1f7b5daa6f0fce6a60228c79292f87f5c`, including the active memory-consent lock/trigger regression test. Live Auth/SMS, migration-history and provider gates remain.
 - Migration quarantine/index proposal: [PR #58](https://github.com/kaustubhdua/Saathi/pull/58), draft; do not merge until all environments' migration histories are reconciled.
 - [Release acceptance matrix](RELEASE_ACCEPTANCE_MATRIX.md)
 - [Provider verification plan](PROVIDER_VERIFICATION.md)
@@ -32,11 +32,11 @@ Last verified: 2026-10-15 UTC
 - Memory consent is explicitly described as permission for future storage because automatic conversation-memory writes are not yet connected.
 - The membership migration remains proposed outside active discovery until PR #58's migration-history reconciliation is approved. Until that table exists, household-specific requests fail closed. Enrollment now creates a separate phone-unlinked household if a concurrent unique-phone insert conflicts; it never adopts a household by looking up the conflicting phone number.
 - The feature requires public `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (or the existing public anon key), plus server-only `SUPABASE_URL` and `SUPABASE_SECRET_KEY`. Never expose the secret key through `NEXT_PUBLIC_*`.
-- The authentication rate limiter rejects missing, malformed or comma-separated trusted client IP values in production before any Upstash request; development retains a local fallback and caps bucket storage at 5,000 entries. The household enrollment flow also isolates concurrent phone-number uniqueness conflicts rather than adopting an existing household. Both fixes and regression tests are now committed to this auth branch; exact-head CI is required before the candidate is considered review-ready.
+- The authentication rate limiter rejects missing, malformed or comma-separated trusted client IP values in production before any Upstash request; development retains a local fallback and caps bucket storage at 5,000 entries. The household enrollment flow also isolates concurrent phone-number uniqueness conflicts rather than adopting an existing household. Both fixes and regression tests are committed to this auth branch; exact-head CI run #894 passed all five jobs on `ae17c5e1f7b5daa6f0fce6a60228c79292f87f5c`.
 
 ## Candidate integration — household tasks and explicit memory
 
-- Task and memory API/UI changes from PRs #71/#72 have been ported onto the current authentication branch. Exact-head CI run #873 passed all five jobs on `349c0de31ad5a4cc01b7111d9b038d8f6a31f11b`; this remains a draft branch, not main or production.
+- Task and memory API/UI changes from PRs #71/#72 have been ported onto the current authentication branch. The task/memory patches are included in the consolidated auth candidate; exact-head CI run #894 passed all five jobs on `ae17c5e1f7b5daa6f0fce6a60228c79292f87f5c`. This remains a draft branch, not main or production.
 - Task list/create/status routes use verified household context; idempotency-conflict recovery is additionally household-filtered and rejects mismatched rows. Automatic reminder dispatch and callback delivery remain disabled.
 - Memory list/write/delete routes require current persisted memory consent and explicit user input; automatic conversation extraction is not connected. Database trigger behavior and revocation races still require isolated live-database acceptance.
 
@@ -59,7 +59,7 @@ Last verified: 2026-10-15 UTC
 
 ## Next actions
 
-1. Keep PR #68 draft until the latest exact-head CI is green. Configure Supabase Phone Auth/SMS and server-only secrets, then test OTP, household PIN, task isolation and consent in an isolated environment.
+1. Keep PR #68 draft until migration history, live Auth/SMS, household isolation and provider acceptance gates are satisfied; exact-head CI is green but is not production acceptance. Configure Supabase Phone Auth/SMS and server-only secrets, then test OTP, household PIN, task isolation and consent in an isolated environment.
 2. Configure Supabase Phone Auth and SMS delivery, then verify OTP, session refresh, sign-out, first-household creation, phone-number recycling isolation and consent behavior against an isolated test household.
 3. Confirm the existing `saathi_memory_consent_locking` migration is present in each target environment, reconcile migration history, and verify concurrent memory write/revocation against an isolated database. Keep automatic extraction disabled.
 4. Keep PR #58 draft until migration history is reconciled across environments; do not apply live DDL before approval.
