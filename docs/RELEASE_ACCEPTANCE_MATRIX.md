@@ -34,7 +34,7 @@ This is an evidence ledger, not a declaration that release gates have passed. Au
 - CI on PR #57 head `03483bc3450a08cad161765494758e06c3093cec`: all five jobs passed; PR was subsequently merged.
 - Main push run #771 on `e8a13bdd0022f33707e6a9338d3cc7fcdf039615`: success.
 - PR #59 exact-head run #772: check its live status before merge.
-- CI uses `npm install`, not `npm ci`; frontend lockfile reproducibility remains open.
+- CI uses `npm ci` with the committed `frontend/package-lock.json` (PR #66); the frontend and dependency-audit jobs verify lockfile-based installation. This does not establish hosted or provider-backed behaviour.
 - CI provider tests are stubs/smoke checks and do not prove live weather, mandi, Sarvam, document AI or Exotel functionality.
 
 ## Data-safety rules
