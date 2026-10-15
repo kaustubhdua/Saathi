@@ -525,17 +525,29 @@ async def telephony_webhook(
         raise HTTPException(status_code=503, detail="telephony_webhook_not_configured")
     if not x_saathi_signature or not HmacWebhookVerifier(settings.telephony_webhook_secret).verify(body, x_saathi_signature):
         raise HTTPException(status_code=401, detail="invalid_signature")
-    event_id = derive_event_id(body, x_provider_event_id)
-    event_type = None
+    # The signature covers the raw body, not arbitrary headers. Derive the
+    # idempotency key from the signed bytes rather than trusting an unsigned ID header.
+    event_id = derive_event_id(body)
+    content_type = request.headers.get("content-type", "").lower()
+    parsed_body: dict[str, object] = {}
     try:
-        parsed_body = await request.json()
-        if isinstance(parsed_body, dict) and isinstance(parsed_body.get("event"), str):
-            event_type = parsed_body["event"]
-        elif isinstance(parsed_body, dict) and isinstance(parsed_body.get("event_type"), str):
-            event_type = parsed_body["event_type"]
-    except (ValueError, UnicodeDecodeError):
-        # The signed raw body remains authoritative; event-type metadata is optional.
-        event_type = None
+        if content_type.startswith("application/json"):
+            candidate = await request.json()
+            if isinstance(candidate, dict):
+                parsed_body = candidate
+        elif content_type.startswith("application/x-www-form-urlencoded") or content_type.startswith("multipart/form-data"):
+            form = await request.form()
+            parsed_body = {str(key): value for key, value in form.items() if isinstance(value, str)}
+        else:
+            raise HTTPException(status_code=415, detail="unsupported_webhook_content_type")
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail="invalid_webhook_payload") from exc
+
+    event_type = next((parsed_body.get(key) for key in ("event", "event_type", "Status", "CallStatus", "CallState", "status") if isinstance(parsed_body.get(key), str)), None)
+    provider_call_id = next((parsed_body.get(key) for key in ("CallSid", "call_sid", "provider_call_id") if isinstance(parsed_body.get(key), str)), None)
+    provider_status = next((parsed_body.get(key) for key in ("Status", "CallStatus", "CallState", "status", "event_type", "event") if isinstance(parsed_body.get(key), str)), None)
 
     if settings.supabase_url and settings.supabase_secret_key:
         try:
@@ -553,4 +565,26 @@ async def telephony_webhook(
         raise HTTPException(status_code=503, detail="durable_webhook_store_not_configured")
     else:
         duplicate = webhook_events.seen_or_record(event_id)
-    return {"status": "duplicate" if duplicate else "accepted", "event_id": event_id}
+
+    call_status_result = "unmapped"
+    if provider_call_id and provider_status:
+        if not (settings.supabase_url and settings.supabase_secret_key):
+            if settings.app_env.lower() == "production":
+                raise HTTPException(status_code=503, detail="call_status_store_not_configured")
+            call_status_result = "not_persisted_demo"
+        else:
+            try:
+                call_status_result = await SupabaseCallRepository().apply_provider_status(
+                    provider_event_id=event_id,
+                    provider_call_id=provider_call_id,
+                    provider_status=provider_status,
+                )
+            except ValueError as exc:
+                raise HTTPException(status_code=422, detail=str(exc)) from exc
+            except SupabaseRepositoryError as exc:
+                raise HTTPException(status_code=503, detail="call_status_processing_unavailable") from exc
+    return {
+        "status": "duplicate" if duplicate else "accepted",
+        "event_id": event_id,
+        "call_status": call_status_result,
+    }
