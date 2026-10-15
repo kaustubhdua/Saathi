@@ -31,4 +31,5 @@ test("global error boundary renders a complete document and recovery actions", (
 test("dashboard has route-specific metadata that truthfully labels demo limitations", () => {
   assert.match(dashboardLayout, /title: "Household demo \| Saathi"/);
   assert.match(dashboardLayout, /automatic reminders and volunteer assignment require separate configuration and verification/);
+  assert.match(dashboardLayout, /robots: \{ index: false, follow: false \}/);
 });
