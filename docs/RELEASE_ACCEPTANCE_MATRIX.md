@@ -8,8 +8,8 @@ This is an evidence ledger, not a declaration that release gates have passed. Au
 
 - Main baseline for this branch: `edd5164fc406b87a5ab811d9746ad21e7e4c1d1f` after PR #66.
 - PR #57 (API proxy/source freshness), #59 (identity fail-closed guard), #61 (telephony callback state handling), #63 (dashboard accessibility) and #64 (shared production rate limiting) are merged.
-- PR #68 implements phone OTP, household PIN, user-to-household mapping and consent workflows; prior exact-head CI run #851 passed all five jobs on `ca19ba37e6e3b27fada7094388db110ba946a16e`. A follow-up branch now rejects invalid/missing trusted IPs before Redis access and bounds development limiter memory; its CI is pending.
-- Trusted-IP validation and phone-enrollment collision isolation fixes are committed to the auth branch with regression coverage; verify exact-head CI. Live Auth/SMS and migration activation remain outstanding.
+- PR #68 implements phone OTP, household PIN, consent, household task APIs and explicit user-entered memory. Exact-head CI run #874 passed all five jobs on `6dfe25d210cade46c47b738366f9b8f5be836527`; run #876 checks the proposed consent-locking migration and regression test.
+- Trusted-IP validation, bounded development limiter storage and phone-enrollment collision isolation have regression coverage. Live Auth/SMS and migration activation remain outstanding.
 - PR #58 remains draft because other environments' migration histories are not verified; its latest exact-head CI run #840 passed all five jobs.
 - Production Vercel configuration/deployment remains deferred until 2026-10-24.
 - No live provider test, live database DDL, or production deployment is claimed here.
@@ -23,8 +23,8 @@ This is an evidence ledger, not a declaration that release gates have passed. Au
 | 3 | Production API traffic uses shared rate limiting and trusted client IP | CODE; DEPLOYMENT BLOCKED | PR #64 merged; auth follow-up rejects missing/ambiguous IPs before Redis access; configure Upstash credentials and verify hosting overwrites the trusted single-IP header |
 | 4 | Verified identity maps to a household; caller-supplied UUID cannot select another household | PARTIAL — PR #68 draft | Phone OTP and PIN code are proposed; trusted-IP fail-closed and concurrent phone-collision isolation fixes are committed with regression tests; review/apply auth-user membership migration only after PR #58 reconciliation, then test number-recycling isolation in an isolated environment |
 | 5 | Consent grant/status/revocation are persisted and identity-bound | PARTIAL — PR #68 draft | CI covers API contracts; verify real Supabase Auth, household mapping and persisted grant/revoke behavior in an isolated test household |
-| 6 | Memory writes require current consent; revocation deletes memory | CODE + CI; LIVE DB PENDING | Explicit user-confirmed list/write/delete is integrated on the auth candidate; automatic conversation extraction remains disabled. Verify trigger behavior and concurrent revoke/write in an isolated database. |
-| 7 | Two households cannot read/update each other's tasks, memory or cases | NOT COMPLETE | Two-identity integration tests against a non-production database |
+| 6 | Memory reads/writes require current consent; revocation deletes memory | API + PROPOSED DB FIX; LIVE RACE TEST PENDING | PR #68 adds user-entered save/list/delete with persisted consent checks and database guard rejection handling. Proposed `SELECT ... FOR UPDATE` trigger replacement serializes writes with revocation; reconcile history and test against an isolated DB before applying. Automatic extraction remains disabled. |
+| 7 | Two households cannot read/update each other's tasks, memory or cases | CODE + UNIT TESTS; LIVE ISOLATION NOT VERIFIED | PR #68 scopes task/memory API and repository operations to the verified household; prove with two real identities and a non-production database before release |
 | 8 | Live weather and mandi results have correct source and observation/retrieval timestamps | NOT VERIFIED | Authorized provider tests; validate units, location matching, freshness and failure cases |
 | 9 | Browser voice completes real STT -> tool -> TTS with measured latency | NOT VERIFIED | Provider credentials, browser matrix, STT/TTS round-trip logs and p50/p95 latency |
 | 10 | Outbound phone calls require persisted purpose-specific consent; webhooks update call lifecycle idempotently | PARTIAL / FAIL-CLOSED | PR #61 adds state processing; keep live calls disabled until the real provider signature contract is proven and consent is checked on the actual call path |
@@ -41,7 +41,7 @@ This is an evidence ledger, not a declaration that release gates have passed. Au
 - [PR #61](https://github.com/kaustubhdua/Saathi/pull/61) — webhook state processing and live-call gate.
 - [PR #63](https://github.com/kaustubhdua/Saathi/pull/63) — dashboard accessibility contracts and truthful labels.
 - [PR #64](https://github.com/kaustubhdua/Saathi/pull/64) — shared production rate limiting.
-- [PR #68](https://github.com/kaustubhdua/Saathi/pull/68) — phone OTP, household PIN, household mapping and consent (draft).
+- [PR #68](https://github.com/kaustubhdua/Saathi/pull/68) — phone OTP, household PIN, consent, tasks and explicit memory (draft).
 - [PR #58](https://github.com/kaustubhdua/Saathi/pull/58) — migration safety and Saathi-only indexes (draft).
 - [Provider verification plan](PROVIDER_VERIFICATION.md).
 
