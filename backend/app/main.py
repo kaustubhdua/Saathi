@@ -347,7 +347,7 @@ async def voice_turn(
     # MIME headers are client-controlled; verify the container signature before
     # sending uploaded bytes to speech providers.
     is_wav = len(raw) >= 12 and raw[:4] == b"RIFF" and raw[8:12] == b"WAVE"
-    is_webm = len(raw) >= 4 and raw[:4] == b"\\x1aE\\xdf\\xa3"
+    is_webm = len(raw) >= 4 and raw[:4] == b"\x1aE\xdf\xa3"
     if (declared_audio_type in {"audio/wav", "audio/x-wav"} and not is_wav) or (
         declared_audio_type == "audio/webm" and not is_webm
     ):
