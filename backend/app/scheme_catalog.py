@@ -45,7 +45,7 @@ SCHEME_CATALOG: tuple[SchemeRecord, ...] = (
         ),
         application_url="https://pmkisan.gov.in/RegistrationFormupdated.aspx",
         source_url="https://www.pmkisan.gov.in/",
-        source_checked_on="2026-10-16",
+        source_checked_on="2026-10-15",
         effective_from="2018-12-01",
         effective_date_note="Official PM-KISAN portal states operational from 1 December 2018; this is the scheme operational date, not a guarantee every current eligibility rule is unchanged.",
         review_note=(
@@ -76,7 +76,7 @@ SCHEME_CATALOG: tuple[SchemeRecord, ...] = (
         ),
         application_url="https://pmfby.gov.in/farmerApplicationForm",
         source_url="https://pmfby.gov.in/home",
-        source_checked_on="2026-10-16",
+        source_checked_on="2026-10-15",
         effective_from="Kharif 2016",
         effective_date_note="Official PMFBY guidelines describe launch from Kharif 2016. Current state, crop and season notifications can have separate effective dates and deadlines; verify the current notification.",
         review_note=(
