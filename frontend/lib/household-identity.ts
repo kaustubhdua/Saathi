@@ -51,9 +51,9 @@ export async function findHouseholdMembership(userId: string): Promise<Household
   return rows[0] ?? null;
 }
 export function isStrongHouseholdPin(pin: string): boolean {
-  if (!/^\\d{8}$/.test(pin)) return false;
-  if (/^(\\d)\\1{7}$/.test(pin)) return false;
-  if (/^(\\d{2})\\1{3}$/.test(pin)) return false;
+  if (!/^\d{8}$/.test(pin)) return false;
+  if (/^(\d)\1{7}$/.test(pin)) return false;
+  if (/^(\d{2})\1{3}$/.test(pin)) return false;
   const digits = pin.split("").map(Number);
   const ascending = digits.every((digit, index) => index === 0 || digit === digits[index - 1] + 1);
   const descending = digits.every((digit, index) => index === 0 || digit === digits[index - 1] - 1);
