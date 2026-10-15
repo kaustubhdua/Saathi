@@ -22,7 +22,7 @@ The dashboard uses same-origin `/backend/*` routes. The Next.js Node route forwa
 
 ## Verification
 
-CI runs `node --test tests/backend-proxy.test.mjs` plus lint, TypeScript and the Next.js build. These tests stub the upstream; they do not prove live provider or deployment behavior.
+CI runs `node --test tests/*.test.mjs` plus lint, TypeScript, the Next.js build and a local dashboard smoke check. The proxy tests stub the Redis limiter and API upstream; they do not prove live provider or deployment behavior. These tests stub the upstream; they do not prove live provider or deployment behavior.
 
 ## Household identity fail-closed behavior
 
