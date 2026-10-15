@@ -3,8 +3,9 @@ import { Buffer } from "node:buffer";
 const POLICIES = {
   "api/v1/agent": { method: "POST", kind: "json", maxBytes: 64 * 1024, timeoutMs: 12_000 },
   "api/v1/voice/turn": { method: "POST", kind: "multipart", maxBytes: 10 * 1024 * 1024, timeoutMs: 45_000 },
+  "api/v1/household/consent": { method: "POST", kind: "consent", maxBytes: 4096, timeoutMs: 8_000 },
 };
-const READ_ROUTES = new Set(["health/ready", "health/live"]);
+const READ_ROUTES = new Set(["health/ready", "health/live", "api/v1/household/consent"]);
 const buckets = new Map();
 const WINDOW_MS = 60_000;
 const REQUEST_LIMIT = 30;
@@ -52,12 +53,14 @@ async function readBoundedBody(request, maxBytes, timeoutMs) {
   return Buffer.concat(chunks, total);
 }
 
-export async function proxyRequest(request, segments = []) {
+export async function proxyRequest(request, segments = [], verifiedContext = null) {
   const path = Array.isArray(segments) ? segments.join("/") : "";
   const method = request.method.toUpperCase();
   const readOnly = READ_ROUTES.has(path) && method === "GET";
   const policy = POLICIES[path];
   if (!readOnly && (!policy || policy.method !== method)) return errorResponse(404, "route_not_allowed");
+  if (path === "api/v1/household/consent" && !verifiedContext) return errorResponse(401, "verified_phone_identity_required");
+  if (verifiedContext && (!/^[0-9a-f-]{36}$/i.test(verifiedContext.identityId) || !/^[0-9a-f-]{36}$/i.test(verifiedContext.householdId))) return errorResponse(403, "invalid_verified_household_context");
   if (isRateLimited(request)) return errorResponse(429, "rate_limit_exceeded");
   if (method !== "GET") {
     const origin = request.headers.get("origin");
@@ -72,6 +75,10 @@ export async function proxyRequest(request, segments = []) {
   const token = process.env.SAATHI_API_AUTH_TOKEN || "";
   if (process.env.NODE_ENV === "production" && token.length < 32) return errorResponse(503, "api_operator_auth_not_configured");
   const headers = new Headers({ Accept: "application/json" });
+  if (verifiedContext) {
+    headers.set("X-Saathi-Verified-Identity", verifiedContext.identityId);
+    headers.set("X-Saathi-Verified-Household", verifiedContext.householdId);
+  }
   let body;
   if (!readOnly) {
     const contentType = request.headers.get("content-type") || "";
@@ -79,14 +86,19 @@ export async function proxyRequest(request, segments = []) {
     if (policy.kind === "multipart" && (!contentType.toLowerCase().startsWith("multipart/form-data;") || !contentType.toLowerCase().includes("boundary="))) return errorResponse(415, "multipart_form_data_required");
     try { body = await readBoundedBody(request, policy.maxBytes, policy.timeoutMs); }
     catch (error) { return errorResponse(error?.status || 400, error?.message || "invalid_request_body"); }
-    if (policy.kind === "json") {
+    if (policy.kind === "json" || policy.kind === "consent") {
       let parsed;
       try { parsed = JSON.parse(body.toString("utf8")); } catch { return errorResponse(400, "invalid_json"); }
       if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return errorResponse(400, "json_object_required");
-      if (Object.hasOwn(parsed, "household_id")) return errorResponse(400, "verified_household_identity_required");
-      if (typeof parsed.message !== "string" || !parsed.message.trim() || parsed.message.length > 8000) return errorResponse(422, "valid_message_required");
-      if (parsed.language !== undefined && (typeof parsed.language !== "string" || parsed.language.length > 20)) return errorResponse(422, "invalid_language");
-      body = Buffer.from(JSON.stringify({ message: parsed.message, ...(parsed.language ? { language: parsed.language } : {}) }));
+      if (Object.hasOwn(parsed, "household_id") || Object.hasOwn(parsed, "user_id") || Object.hasOwn(parsed, "identity_id")) return errorResponse(400, "verified_household_identity_required");
+      if (policy.kind === "json") {
+        if (typeof parsed.message !== "string" || !parsed.message.trim() || parsed.message.length > 8000) return errorResponse(422, "valid_message_required");
+        if (parsed.language !== undefined && (typeof parsed.language !== "string" || parsed.language.length > 20)) return errorResponse(422, "invalid_language");
+        body = Buffer.from(JSON.stringify({ message: parsed.message, ...(parsed.language ? { language: parsed.language } : {}) }));
+      } else {
+        if (!["memory", "outbound_calls"].includes(parsed.purpose) || typeof parsed.granted !== "boolean") return errorResponse(422, "valid_consent_purpose_and_boolean_required");
+        body = Buffer.from(JSON.stringify({ purpose: parsed.purpose, granted: parsed.granted }));
+      }
       headers.set("Content-Type", "application/json");
     } else {
       if (/name="household_id"/i.test(body.toString("latin1"))) return errorResponse(400, "verified_household_identity_required");
