@@ -94,8 +94,8 @@ def readiness() -> dict[str, object]:
         and settings.exotel_account_sid
         and settings.exotel_virtual_number
         and settings.exotel_stream_url
-        and settings.telephony_callback_url
-        and settings.telephony_callback_signature_verified
+        and getattr(settings, "telephony_callback_url", None)
+        and getattr(settings, "telephony_callback_signature_verified", False)
     )
     reasoning = bool(getattr(settings, "gemini_api_key", None) or getattr(settings, "openai_api_key", None))
     mandi = bool(settings.mandi_api_key and settings.mandi_resource_id)
@@ -399,7 +399,7 @@ async def place_outbound_call(
     required = (settings.exotel_account_sid, settings.exotel_api_key, settings.exotel_api_token, settings.exotel_virtual_number)
     if not all(required):
         raise HTTPException(status_code=503, detail="telephony_provider_not_configured")
-    if not settings.telephony_callback_signature_verified:
+    if not getattr(settings, "telephony_callback_signature_verified", False):
         raise HTTPException(status_code=503, detail="telephony_callback_signature_contract_unverified")
     if payload.realtime_voice_ai and not settings.exotel_stream_url:
         raise HTTPException(status_code=503, detail="realtime_stream_not_configured")
