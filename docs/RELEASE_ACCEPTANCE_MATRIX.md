@@ -8,7 +8,8 @@ This is an evidence ledger, not a declaration that release gates have passed. Au
 
 - Main baseline for this branch: `edd5164fc406b87a5ab811d9746ad21e7e4c1d1f` after PR #66 (reproducible frontend lockfile and `npm ci`).
 - PR #57 (API proxy/source freshness), #59 (identity fail-closed guard), #61 (telephony callback state handling), #63 (dashboard accessibility) and #64 (shared production rate limiting) are merged.
-- PR #70 adds phone OTP, household PIN, user-to-household mapping and consent workflows. CI passes on the code candidate; migration activation and live Auth/SMS tests remain outstanding.
+- PR #70 adds phone OTP, household PIN, user-to-household mapping and consent workflows. CI passed on the code candidate; migration activation and live Auth/SMS tests remain outstanding.
+- PR #71 adds household-scoped task list/create/complete/cancel endpoints and dashboard controls. CI and live database tenant-isolation verification are tracked separately.
 - PR #58 remains draft because other environments' migration histories are not verified.
 - Production Vercel configuration/deployment remains deferred until 2026-10-24.
 - No live provider test, live database DDL, or production deployment is claimed here.
@@ -23,7 +24,7 @@ This is an evidence ledger, not a declaration that release gates have passed. Au
 | 4 | Verified identity maps to a household; caller-supplied UUID cannot select another household | PARTIAL — PR #70 draft | Phone OTP and household PIN code are present; review/apply auth-user membership migration after PR #58 reconciliation, then test number-recycling isolation |
 | 5 | Consent grant/status/revocation are persisted and identity-bound | PARTIAL — PR #65 draft | Consent UI/API added in PR #70; verify real Supabase Auth, household mapping and persistence in an isolated test household |
 | 6 | Memory writes require current consent; revocation deletes memory | SCHEMA + API FOUNDATION | Automatic conversation-memory writes are not connected; test repository/trigger path and concurrent revoke/write behavior |
-| 7 | Two households cannot read/update each other's tasks, memory or cases | NOT COMPLETE | Two-identity integration tests against a non-production database |
+| 7 | Two households cannot read/update each other's tasks, memory or cases | PARTIAL — PR #71 | Task endpoints scope reads/status changes to the verified household and prefix idempotency keys; verify with two real test identities. Memory and volunteer-case isolation remain unverified |
 | 8 | Live weather and mandi results have correct source and observation/retrieval timestamps | NOT VERIFIED | Authorized provider tests; validate units, location matching, freshness and failure cases |
 | 9 | Browser voice completes real STT -> tool -> TTS with measured latency | NOT VERIFIED | Provider credentials, browser matrix, STT/TTS round-trip logs and p50/p95 latency |
 | 10 | Outbound phone calls require persisted purpose-specific consent; webhooks update call lifecycle idempotently | PARTIAL / FAIL-CLOSED | PR #61 adds state processing; keep live calls disabled until the real provider signature contract is proven and consent is checked on the actual call path |
