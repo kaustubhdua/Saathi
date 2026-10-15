@@ -11,7 +11,7 @@ The dashboard uses same-origin `/backend/*` routes. The Next.js Node route forwa
 
 ## Boundaries
 
-- Only `GET /health/ready`, `GET /health/live`, `POST /api/v1/agent`, `POST /api/v1/voice/turn`, authenticated `GET/POST /api/v1/household/consent`, authenticated `GET/POST /api/v1/household/tasks`, and authenticated `POST /api/v1/household/tasks/status` are exposed.
+- Only `GET /health/ready`, `GET /health/live`, `POST /api/v1/agent`, `POST /api/v1/voice/turn`, authenticated `GET/POST /api/v1/household/consent`, authenticated `GET/POST /api/v1/household/tasks`, and authenticated `POST /api/v1/household/tasks/status`, authenticated `GET/POST /api/v1/household/memories`, and authenticated `POST /api/v1/household/memories/delete` are exposed.
 - The proxy rejects browser-supplied household identifiers, checks mutation origins when present, bounds request-body size and read time, rejects redirects, uses no-store responses, and includes a best-effort per-process rate limit.
 - Text requests are limited to 64 KiB; voice uploads are limited to 10 MiB. Upstream calls have bounded timeouts.
 - Production requires `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`, and `SAATHI_TRUSTED_CLIENT_IP_HEADER`. The configured URL must be an HTTPS `*.upstash.io` origin with no custom port, credentials, path, query or fragment. The chosen header must be a single IP address and must be documented/configured by the hosting platform to be overwritten; the app does not trust `X-Forwarded-For` chains by default.
@@ -21,7 +21,8 @@ The dashboard uses same-origin `/backend/*` routes. The Next.js Node route forwa
 - The proxy injects `X-Saathi-Verified-Identity` and `X-Saathi-Verified-Household` only after server-side verification; the backend validates both UUIDs and rejects client-supplied household IDs.
 - The consent API exposes only memory and outbound-call purpose booleans. Both start false; revoking memory relies on the existing database trigger to purge stored memory.
 - Household task list/create/complete/cancel operations are available only after verified phone + household PIN identity. Idempotency keys are prefixed with the verified household ID; task status updates are filtered by household in the repository. Saved tasks do not imply that scheduled reminders or automatic callbacks are running.
-- Outbound-call operations remain unavailable through the public proxy. Phone OTP, household tasks and consent require the membership migration, Supabase Auth/SMS, server-only secrets and shared rate limiter to be configured and tested.
+- Household memory is manually entered only; the application does not extract or save conversation details automatically. Reads/writes require verified household identity, writes additionally require persisted memory consent, and the database trigger re-checks consent while locking the household row to serialize writes against revocation. Revocation purges saved memory; users can also delete individual items.
+- Outbound-call operations remain unavailable through the public proxy. Phone OTP, household tasks, explicit memory and consent require the membership migration, Supabase Auth/SMS, server-only secrets and shared rate limiter to be configured and tested.
 - Production readiness reports `not_ready` when required API operator authentication is missing.
 
 ## Verification
