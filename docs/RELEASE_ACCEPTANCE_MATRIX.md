@@ -8,7 +8,7 @@ This is an evidence ledger, not a declaration that release gates have passed. Au
 
 - Main baseline for this branch: `edd5164fc406b87a5ab811d9746ad21e7e4c1d1f` after PR #66.
 - PR #57 (API proxy/source freshness), #59 (identity fail-closed guard), #61 (telephony callback state handling), #63 (dashboard accessibility) and #64 (shared production rate limiting) are merged.
-- PR #68 implements phone OTP, household PIN, consent, household task APIs and explicit user-entered memory. Exact-head CI run #874 passed all five jobs on `6dfe25d210cade46c47b738366f9b8f5be836527`; run #876 checks the proposed consent-locking migration and regression test.
+- PR #68 implements phone OTP, household PIN, consent, household task APIs and explicit user-entered memory. Exact-head CI run #874 passed all five jobs on `6dfe25d210cade46c47b738366f9b8f5be836527`; fresh exact-head CI is pending after adding the proposed consent-locking migration and regression tests.
 - Trusted-IP validation, bounded development limiter storage and phone-enrollment collision isolation have regression coverage. Live Auth/SMS and migration activation remain outstanding.
 - PR #58 remains draft because other environments' migration histories are not verified; its latest exact-head CI run #840 passed all five jobs.
 - Production Vercel configuration/deployment remains deferred until 2026-10-24.
