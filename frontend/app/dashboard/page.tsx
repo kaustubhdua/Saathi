@@ -5,13 +5,11 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "motion/react";
 import {
-  ArrowLeft, ArrowUpRight, Bot, CheckCircle2, ChevronDown,
+  ArrowLeft, ArrowUpRight, Bot, CheckCircle2,
   CloudRain, Languages, MapPin, Mic2, PhoneCall,
-  ShieldCheck, Sparkles, UserRound, Volume2, Wheat, X, Zap, type LucideIcon
+  ShieldCheck, Sparkles, UserRound, Volume2, Wheat, Zap, type LucideIcon
 } from "lucide-react";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-const DEMO_LOCATION = { latitude: 28.9931, longitude: 77.0151, label: "Sonipat district · demo context" };
 
 type Source = { name: string; url: string; retrieved_at: string; freshness_note?: string | null };
 type Evidence = { name: string; url: string; retrieved_at: string; freshness_note?: string | null };
@@ -74,7 +72,6 @@ export default function Dashboard() {
   const recorderRef = useRef<MediaRecorder | null>(null);
   const recognitionRef = useRef<BrowserSpeechRecognition | null>(null);
   const chunksRef = useRef<Blob[]>([]);
-  const [memoryConsent, setMemoryConsent] = useState(false);
   const [apiOnline, setApiOnline] = useState(false);
   const [apiReady, setApiReady] = useState(false);
   const [capabilities, setCapabilities] = useState<ReadyCapabilities>({});
@@ -82,7 +79,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     const controller = new AbortController();
-    fetch(`${API}/health/ready`, { signal: controller.signal })
+    fetch("/backend/health/ready", { signal: controller.signal, cache: "no-store" })
       .then(async (response) => {
         if (!response.ok) throw new Error("health check failed");
         const body = await response.json();
@@ -198,11 +195,7 @@ export default function Dashboard() {
           const form = new FormData();
           form.append("audio", blob, "caller.webm");
           form.append("language", "hi");
-          form.append("household_id", "demo-household");
-          form.append("latitude", String(DEMO_LOCATION.latitude));
-          form.append("longitude", String(DEMO_LOCATION.longitude));
-          form.append("location_label", DEMO_LOCATION.label);
-          const response = await fetch(`${API}/api/v1/voice/turn`, { method: "POST", body: form });
+          const response = await fetch("/backend/api/v1/voice/turn", { method: "POST", body: form });
           const body = await response.json();
           if (!response.ok) throw new Error(body.detail || `Voice request failed: ${response.status}`);
           setMessage(body.transcript || message);
@@ -234,10 +227,10 @@ export default function Dashboard() {
     setLoading(true);
     setVoiceState("thinking");
     try {
-      const response = await fetch(`${API}/api/v1/agent`, {
+      const response = await fetch("/backend/api/v1/agent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: requestMessage, language: "hi", household_id: "demo-household", location: DEMO_LOCATION }),
+        body: JSON.stringify({ message: requestMessage, language: "hi" }),
       });
       if (!response.ok) throw new Error(`Agent request failed: ${response.status}`);
       const body = await response.json();
@@ -368,7 +361,7 @@ export default function Dashboard() {
         <section className="context-grid">
           <article className="context-card">
             <div className="context-title"><div><span className="panel-kicker">FIELD CONTEXT</span><h3>Where should Saathi look?</h3></div><MapPin size={18} /></div>
-            <div className="location-row"><div className="map-placeholder"><MapPin size={23} /><span>FIELD CONTEXT</span></div><div><strong>Sonipat district</strong><p>Explicit demo context is passed to the API. No browser GPS is claimed.</p><span className="source-status"><i /> Location source · contextual</span></div></div>
+            <div className="location-row"><div className="map-placeholder"><MapPin size={23} /><span>FIELD CONTEXT</span></div><div><strong>Location not set</strong><p>Location-specific answers require a verified location context. Saathi does not infer your location.</p><span className="source-status"><i /> Location source · not provided</span></div></div>
           </article>
 
           <article className="context-card">
@@ -384,14 +377,7 @@ export default function Dashboard() {
         <section className="consent-card" aria-labelledby="consent-title">
           <div className="context-title"><div><span className="panel-kicker">HOUSEHOLD MEMORY</span><h3 id="consent-title">Remember only with permission.</h3></div><ShieldCheck size={18} /></div>
           <p className="consent-intro">Saathi separates useful continuity from silent surveillance. Household memory remains a prototype-only capability until server-side consent persistence is enabled.</p>
-          <div className="consent-options">
-            <button type="button" className={`consent-option ${memoryConsent ? "on" : ""}`} aria-pressed={memoryConsent} onClick={() => setMemoryConsent((value) => !value)}>
-              <span className="toggle">{memoryConsent ? <CheckCircle2 size={14} /> : <X size={14} />}</span>
-              <div><strong>Household memory</strong><small>{memoryConsent ? "Consented for this demo household" : "Not enabled"}</small></div>
-              <ChevronDown size={14} />
-            </button>
-          </div>
-          <div className="consent-note"><ShieldCheck size={14} /> Household memory is intentionally not active in this prototype. Consent toggles are demo-only and do not persist data. In production, consent, opt-out, quiet hours and deletion must be persisted server-side.</div>
+          <div className="consent-note"><ShieldCheck size={14} /> Household memory is disabled in this prototype. No consent is being collected or stored here; persistent memory remains unavailable until authenticated identity, server-side consent and deletion workflows are verified.</div>
         </section>
 
         <section className="fallback-card" aria-labelledby="fallback-title">
