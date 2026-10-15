@@ -44,3 +44,19 @@ The atomic-enrollment candidate was published to PR #68 after this report: `66dc
 ## Operating rule
 
 PRs remain draft and unmerged. A green CI run establishes only the checks listed in that run, not live identity/provider/database readiness. Re-fetch branch heads and verify CI against the exact current SHA after every new commit.
+
+## Run 21 refresh — 16 October 2026
+
+Latest live GitHub check:
+- PR #68 head: `2fee7d7bbb7b999c35cfb376784ec0a160b66851`; still open, draft, not merged.
+- Exact-head GitHub Actions run #950 passed all five jobs (frontend, backend, dependency audit, Docker build, Streamlit smoke): https://github.com/kaustubhdua/Saathi/actions/runs/38788953581
+- PR #68 reports `mergeable=false` against its recorded base. Resolve branch conflicts against current `main`, then rerun CI on the resulting exact head. Do not force-push or merge as a shortcut.
+- PR #58 remains open, draft and unmerged; its mergeability is false and migration-history reconciliation remains a blocker.
+- PR #76 remains closed without merging; accessible error/not-found implementation is consolidated in PR #68.
+
+Additional security hardening now in the proposed membership migration:
+- `SECURITY DEFINER` enrollment RPC uses a fixed `search_path = pg_catalog` and schema-qualifies application objects.
+- Contract tests assert the fixed search path, advisory transaction lock, and explicit execute grants/revocations.
+- The membership table and RPC are still proposed only; live schema inspection confirms the active Nihdhoom project does not have `saathi_household_memberships` or the enrollment function. No live DDL was applied.
+
+Release decision remains **NOT PRODUCTION READY**. Passing exact-head CI is necessary but insufficient. Required before release: conflict resolution and new exact-head CI; authorized isolated PostgreSQL execution/security tests; cross-environment migration-history reconciliation; verified live OTP/SMS and household isolation; consent-revocation race tests; provider/Upstash/trusted-IP verification; accessibility/performance and production smoke/rollback evidence. Keep automatic memory extraction, reminder dispatch, volunteer dispatch and live calls disabled. Do not configure/deploy Vercel before 2026-10-24.
