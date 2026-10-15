@@ -116,7 +116,7 @@ def test_voice_upload_accepts_webm_codec_parameter_before_provider(monkeypatch):
         files={
             "audio": (
                 "recording.webm",
-                b"\\x1aE\\xdf\\xa3" + b"container-fixture",
+                b"\x1aE\xdf\xa3" + b"container-fixture",
                 "audio/webm;codecs=opus",
             )
         },
