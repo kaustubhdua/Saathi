@@ -27,9 +27,10 @@ test("household binding requires confirmed E.164 phone and server-only secret", 
   assert.match(identity, /SUPABASE_SECRET_KEY/);
   assert.match(identity, /saathi_household_memberships/);
   assert.match(identity, /auth_user_id/);
-  assert.match(identity, /phoneAlreadyAssigned/);
-  assert.match(identity, /memory_consent: false/);
-  assert.match(identity, /outbound_call_consent: false/);
+  assert.match(identity, /saathi_enroll_household/);
+  assert.match(identity, /p_auth_user_id: user\.id/);
+  assert.match(identity, /p_verified_phone: user\.phone/);
+  assert.match(identity, /p_pin_hash: pinHash/);
   assert.doesNotMatch(identity, /NEXT_PUBLIC_SUPABASE_SECRET_KEY/);
 });
 
@@ -71,18 +72,24 @@ test("proposed membership migration denies browser access and remains syntactica
   assert.ok(membershipMigration.includes("[0-9]{7,14}$')"));
   assert.match(membershipMigration, /ENABLE ROW LEVEL SECURITY/);
   assert.match(membershipMigration, /REVOKE ALL ON TABLE public\.saathi_household_memberships FROM PUBLIC, anon, authenticated/);
-  assert.match(membershipMigration, /GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public\.saathi_household_memberships TO service_role/);
+  assert.match(membershipMigration, /REVOKE ALL ON TABLE public\.saathi_household_memberships FROM service_role/);
+  assert.match(membershipMigration, /GRANT SELECT ON TABLE public\.saathi_household_memberships TO service_role/);
+  assert.match(membershipMigration, /REVOKE ALL ON FUNCTION public\.saathi_enroll_household\(uuid, text, text\)\s+FROM PUBLIC, anon, authenticated/);
+  assert.match(membershipMigration, /GRANT EXECUTE ON FUNCTION public\.saathi_enroll_household\(uuid, text, text\)\s+TO service_role/);
   assert.match(membershipMigration, /PROPOSED ONLY/);
   assert.equal(membershipMigration.trim().endsWith(";"), true);
   assert.equal((membershipMigration.match(/CREATE INDEX/g) || []).length, 1);
+  assert.match(membershipMigration, /CREATE OR REPLACE FUNCTION public\.saathi_enroll_household/);
 });
 
 
-test("phone-number uniqueness races never attach a new Auth user to an existing household", () => {
-  assert.match(identity, /if \(!householdId && !phoneAlreadyAssigned\) \{/);
-  assert.match(identity, /isolatedHouseholdResponse/);
-  assert.match(identity, /phone_number: null, memory_consent: false, outbound_call_consent: false/);
-  assert.doesNotMatch(identity, /if \(!householdId && !phoneAlreadyAssigned\) householdId = await findHouseholdByPhone/);
+test("household enrollment is atomic and serialized per Auth identity", () => {
+  assert.match(identity, /\/rest\/v1\/rpc\/saathi_enroll_household/);
+  assert.match(identity, /p_auth_user_id: user\.id/);
+  assert.match(membershipMigration, /pg_advisory_xact_lock/);
+  assert.match(membershipMigration, /hashtextextended\(p_auth_user_id::text, 0\)/);
+  assert.match(membershipMigration, /ON CONFLICT \(phone_number\) DO NOTHING/);
+  assert.match(membershipMigration, /VALUES \(NULL, FALSE, FALSE\)/);
 });
 
 
