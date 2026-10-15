@@ -40,9 +40,11 @@ test("OTP flow requires a verified six-digit SMS code", () => {
   assert.match(consentRoute, /phone_confirmed_at/);
 });
 
-test("proxy resolves household context server-side and protects consent routes", () => {
+test("proxy resolves household context server-side for consent, tasks and memory", () => {
   assert.match(proxyRoute, /resolveVerifiedHouseholdContext/);
   assert.match(proxyRoute, /api\/v1\/household\/consent/);
+  assert.match(proxyRoute, /api\/v1\/household\/tasks/);
+  assert.match(proxyRoute, /api\/v1\/household\/memories/);
   assert.match(proxyRoute, /household_identity_unavailable/);
   assert.match(proxyRoute, /household_pin_verification_required/);
   assert.match(proxyRoute, /requiresUserAction \? 401 : 503/);
@@ -61,10 +63,10 @@ test("household PIN is separate, rate-limited and server-keyed", () => {
   assert.match(signoutRoute, /clearHouseholdContextCookie/);
 });
 
-test("proposed membership migration denies browser access and remains syntactically complete", () => {
+test("proposed membership migration has complete hash constraints and browser-role denial", () => {
   assert.match(membershipMigration, /auth_user_id uuid NOT NULL UNIQUE REFERENCES auth\.users\(id\)/);
   assert.match(membershipMigration, /pin_hash text NOT NULL/);
-  assert.ok(membershipMigration.includes("CHECK (pin_hash ~ '^[0-9a-f]{64}
+  assert.ok(membershipMigration.includes("CHECK (pin_hash ~ '^[0-9a-f]{64}$')"));
   assert.ok(membershipMigration.includes("verified_phone text NOT NULL CHECK"));
   assert.ok(membershipMigration.includes("[0-9]{7,14}$')"));
   assert.match(membershipMigration, /ENABLE ROW LEVEL SECURITY/);
@@ -73,26 +75,8 @@ test("proposed membership migration denies browser access and remains syntactica
   assert.match(membershipMigration, /PROPOSED ONLY/);
   assert.equal(membershipMigration.trim().endsWith(";"), true);
   assert.equal((membershipMigration.match(/CREATE INDEX/g) || []).length, 1);
+  assert.equal((membershipMigration.match(/CREATE TABLE IF NOT EXISTS/g) || []).length, 1);
 });
-
-
-test("phone-number uniqueness races never attach a new Auth user to an existing household", () => {
-  assert.match(identity, /if \(!householdId && !phoneAlreadyAssigned\) \{/);
-  assert.match(identity, /isolatedHouseholdResponse/);
-  assert.match(identity, /phone_number: null, memory_consent: false, outbound_call_consent: false/);
-  assert.doesNotMatch(identity, /if \(!householdId && !phoneAlreadyAssigned\) householdId = await findHouseholdByPhone/);
-});
-)"));
-  assert.ok(membershipMigration.includes("verified_phone text NOT NULL CHECK"));
-  assert.ok(membershipMigration.includes("[0-9]{7,14}$')"));
-  assert.match(membershipMigration, /ENABLE ROW LEVEL SECURITY/);
-  assert.match(membershipMigration, /REVOKE ALL ON TABLE public\.saathi_household_memberships FROM PUBLIC, anon, authenticated/);
-  assert.match(membershipMigration, /GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public\.saathi_household_memberships TO service_role/);
-  assert.match(membershipMigration, /PROPOSED ONLY/);
-  assert.equal(membershipMigration.trim().endsWith(";"), true);
-  assert.equal((membershipMigration.match(/CREATE INDEX/g) || []).length, 1);
-});
-
 
 test("phone-number uniqueness races never attach a new Auth user to an existing household", () => {
   assert.match(identity, /if \(!householdId && !phoneAlreadyAssigned\) \{/);
