@@ -38,7 +38,7 @@ CREATE OR REPLACE FUNCTION public.saathi_enroll_household(
 RETURNS TABLE (id uuid, household_id uuid, pin_hash text, verified_phone text)
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = pg_catalog, public
+SET search_path = pg_catalog
 AS $saathi$
 DECLARE
   existing public.saathi_household_memberships%ROWTYPE;
