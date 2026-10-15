@@ -340,7 +340,7 @@ export default function Dashboard() {
           </div>
           <div className="header-badges">
             <span role="status" aria-live="polite"><Zap size={13} /> {apiOnline ? (apiReady ? "API ready" : "API online") : "API offline"}</span>
-            <span><ShieldCheck size={13} /> Household memory off</span>
+            <span><ShieldCheck size={13} /> {consentStatus?.memory.granted ? "Household memory on" : "Household memory off"}</span>
             <span><Languages size={13} /> Hindi-first</span>
             {authStatus.phoneSuffix ? <button type="button" className="auth-status-link" onClick={signOut}>Verified phone · ••••{authStatus.phoneSuffix} · Sign out</button> : <Link href="/login" className="auth-status-link">{authStatus.loading ? "Checking sign-in…" : authStatus.configured ? "Sign in with phone" : "Phone sign-in not configured"}</Link>}
           </div>
