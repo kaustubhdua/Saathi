@@ -340,7 +340,7 @@ export default function Dashboard() {
           </div>
           <div className="header-badges">
             <span role="status" aria-live="polite"><Zap size={13} /> {apiOnline ? (apiReady ? "API ready" : "API online") : "API offline"}</span>
-            <span><ShieldCheck size={13} /> {consentStatus?.memory.granted ? "Household memory on" : "Household memory off"}</span>
+            <span><ShieldCheck size={13} /> {consentStatus?.memory.granted ? "Memory consent granted" : "Memory consent off"}</span>
             <span><Languages size={13} /> Hindi-first</span>
             {authStatus.phoneSuffix ? <button type="button" className="auth-status-link" onClick={signOut}>Verified phone · ••••{authStatus.phoneSuffix} · Sign out</button> : <Link href="/login" className="auth-status-link">{authStatus.loading ? "Checking sign-in…" : authStatus.configured ? "Sign in with phone" : "Phone sign-in not configured"}</Link>}
           </div>
@@ -475,7 +475,7 @@ export default function Dashboard() {
           ) : (
             <div className="consent-actions">
               <div className="consent-choice">
-                <div><strong>Household memory</strong><p>Allow Saathi to store household continuity. Revoking this permission purges stored memory through the database guard.</p><span className="consent-state" role="status">{consentStatus ? (consentStatus.memory.granted ? "Granted" : "Not granted") : "Loading status…"}</span></div>
+                <div><strong>Household memory</strong><p>Grant permission for future household-memory storage. The conversation workflow does not yet write memories automatically; revoking this permission purges any stored memory through the database guard.</p><span className="consent-state" role="status">{consentStatus ? (consentStatus.memory.granted ? "Granted" : "Not granted") : "Loading status…"}</span></div>
                 <div className="consent-buttons"><button type="button" className="voice-button" onClick={() => void updateConsent("memory", true)} disabled={consentBusy || !consentStatus || consentStatus.memory.granted}>Enable memory</button><button type="button" className="voice-button" onClick={() => void updateConsent("memory", false)} disabled={consentBusy || !consentStatus || !consentStatus.memory.granted}>Revoke memory</button></div>
               </div>
               <div className="consent-choice">
