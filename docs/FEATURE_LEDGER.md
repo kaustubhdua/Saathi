@@ -8,7 +8,7 @@ Last verified: 2026-10-15 UTC
 - Telephony callback lifecycle and live-call safety gate: [PR #61](https://github.com/kaustubhdua/Saathi/pull/61), merged.
 - Dashboard keyboard accessibility and truthful status labels: [PR #63](https://github.com/kaustubhdua/Saathi/pull/63), merged.
 - Shared production rate limiting: [PR #64](https://github.com/kaustubhdua/Saathi/pull/64), merged; production requires configured Upstash Redis and a trusted single-IP header.
-- Phone OTP, household PIN and purpose-specific consent: [PR #68](https://github.com/kaustubhdua/Saathi/pull/68), draft; exact-head CI run #848 passed all five jobs on `5892a7321a509cff12471b147b4c7d3988ab1cd2`. Migration and live provider gates remain.
+- Phone OTP, household PIN and purpose-specific consent: [PR #68](https://github.com/kaustubhdua/Saathi/pull/68), draft; prior exact-head CI run #851 passed all five jobs on `ca19ba37e6e3b27fada7094388db110ba946a16e`. This follow-up branch adds fail-closed trusted-IP validation and bounded local rate-limit storage; it must pass its own exact-head CI before integration. Migration and live provider gates remain.
 - Migration quarantine/index proposal: [PR #58](https://github.com/kaustubhdua/Saathi/pull/58), draft; do not merge until all environments' migration histories are reconciled.
 - [Release acceptance matrix](RELEASE_ACCEPTANCE_MATRIX.md)
 - [Provider verification plan](PROVIDER_VERIFICATION.md)
@@ -23,7 +23,7 @@ Last verified: 2026-10-15 UTC
 - PR #63 merged after frontend accessibility contract tests and full CI passed.
 - PR #64 merged after CI run #796 passed. Production API requests now fail closed unless shared Upstash rate limiting and a trusted single-IP header are configured. The Upstash credentials and hosting-header behavior have not been verified in a live deployment.
 
-## Partial — PR #68 CI green; migration and provider configuration pending
+## Partial — PR #68 authentication candidate; trusted-IP hardening follow-up pending CI
 
 - Supabase SSR phone OTP login routes and an accessible login page are added. SMS delivery requires enabling Supabase Phone Auth and configuring the SMS provider in the project dashboard.
 - The server verifies the Supabase user and confirmed E.164 phone, then maps the immutable Supabase Auth user ID through the proposed `saathi_household_memberships` table. A phone number alone never grants access, avoiding recycled-number takeover.
@@ -32,6 +32,7 @@ Last verified: 2026-10-15 UTC
 - Memory consent is explicitly described as permission for future storage because automatic conversation-memory writes are not yet connected.
 - The membership migration remains proposed outside active discovery until PR #58's migration-history reconciliation is approved. Until that table exists, household-specific requests fail closed.
 - The feature requires public `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (or the existing public anon key), plus server-only `SUPABASE_URL` and `SUPABASE_SECRET_KEY`. Never expose the secret key through `NEXT_PUBLIC_*`.
+- The authentication rate limiter now rejects missing, malformed or comma-separated trusted client IP values in production before any Upstash request; development retains a local fallback. Development bucket storage is capped at 5,000 entries. These changes are in a follow-up PR stacked on the auth candidate and are not yet merged.
 
 ## Other partial implementation
 
@@ -50,7 +51,7 @@ Last verified: 2026-10-15 UTC
 
 ## Next actions
 
-1. Keep PR #68 draft until the membership migration can be safely activated after PR #58 is reconciled. Configure Supabase Phone Auth/SMS and server-only secrets, then test the full identity/consent flow in an isolated environment.
+1. Keep PR #68 draft until the trusted-IP hardening follow-up is integrated and green, and the membership migration can be safely activated after PR #58 is reconciled. Configure Supabase Phone Auth/SMS and server-only secrets, then test the full identity/consent flow in an isolated environment.
 2. Configure Supabase Phone Auth and SMS delivery, then verify OTP, session refresh, sign-out, first-household creation, phone-number recycling isolation and consent behavior against an isolated test household.
 3. Prove memory consent/revocation through the actual repository and database trigger; connect memory writes only after identity and consent tests pass.
 4. Keep PR #58 draft until migration history is reconciled across environments; do not apply live DDL before approval.
