@@ -16,7 +16,7 @@ Last verified: 2026-10-15 UTC
 
 ## Verified
 
-- The Nihdhoom project was reviewed read-only and contained eight Saathi-prefixed tables with RLS enabled and browser-role access denied. No live database migration or production deployment was performed.
+- Read-only verification of the Nihdhoom project on 2026-10-15 confirms eight `saathi_*` tables with RLS enabled, six recorded Saathi migrations including `saathi_memory_consent_locking`, and no `saathi_household_memberships` table. The two legacy unprefixed migration versions/tables remain absent in this project. No live DDL or production deployment was performed; other target environments still need migration-history reconciliation.
 - PR #57 merged as `e8a13bdd0022f33707e6a9338d3cc7fcdf039615`; exact-head CI run #770 passed all five jobs, and main run #771 passed.
 - PR #59 merged as `d048170180a24a36280c557150753c687139d9d7`; exact-head CI run #774 passed all five jobs.
 - PR #61 merged after exact-head CI run #782 passed all five jobs. Callback state processing is implemented, but live calls remain disabled until the real provider authentication contract is verified.
