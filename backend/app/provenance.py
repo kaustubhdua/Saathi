@@ -6,6 +6,8 @@ class SourceRecord(BaseModel):
     url: str = Field(min_length=1, max_length=1000)
     # None means this response is catalogue-backed, not a live provider retrieval.
     retrieved_at: datetime | None = Field(default_factory=lambda: datetime.now(timezone.utc))
+    # Provider observation time is distinct from when Saathi retrieved the response.
+    observed_at: datetime | None = Field(default=None)
     freshness_note: str | None = Field(default=None, max_length=300)
     freshness_status: str | None = Field(default=None, max_length=30)
 
