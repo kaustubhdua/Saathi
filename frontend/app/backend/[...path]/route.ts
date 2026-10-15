@@ -8,7 +8,7 @@ type RouteContext = { params: Promise<{ path: string[] }> };
 async function handle(request: Request, context: RouteContext) {
   const { path = [] } = await context.params;
   const routePath = path.join("/");
-  const identityRoutes = new Set(["api/v1/agent", "api/v1/voice/turn", "api/v1/household/consent"]);
+  const identityRoutes = new Set(["api/v1/agent", "api/v1/voice/turn", "api/v1/household/consent", "api/v1/household/tasks", "api/v1/household/tasks/status", "api/v1/household/memories", "api/v1/household/memories/delete"]);
   let verifiedContext = null;
   if (identityRoutes.has(routePath)) {
     try {
