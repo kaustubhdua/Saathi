@@ -86,3 +86,18 @@ button,a{touch-action:manipulation}
 .auth-form label{font-size:13px;font-weight:750;color:#183d32}
 .auth-form input{width:100%;min-height:46px;padding:11px 13px;border:1px solid #cbd6ca;border-radius:9px;background:#fff;color:#183d32;font:inherit}
 @media(max-width:640px){.consent-choice{flex-direction:column}.consent-buttons{max-width:none;width:100%}.consent-buttons button{flex:1}.auth-status-link{font-size:10px;padding:6px 8px}}
+
+
+/* Household task list */
+.task-form{display:grid;gap:9px;margin:18px 0 16px}
+.task-form label{font-size:12px;font-weight:750;color:#183d32}
+.task-form-row{display:flex;gap:10px;align-items:stretch}
+.task-form-row input{flex:1;min-width:0;min-height:44px;padding:10px 12px;border:1px solid #cbd6ca;border-radius:9px;background:#fff;color:#183d32;font:inherit}
+.task-form-row input:focus-visible{outline:3px solid #d9a64b;outline-offset:3px}
+.task-list{list-style:none;margin:0;padding:0;display:grid;gap:9px}
+.task-row{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:13px 14px;border:1px solid #dce3da;border-radius:11px;background:#fff}
+.task-row>div{min-width:0;flex:1}
+.task-row strong{display:block;color:#183d32;font-size:13px;overflow-wrap:anywhere}
+.task-row p{margin:5px 0 0;color:#69766d;font-size:12px;line-height:1.5}
+.task-row button{flex-shrink:0}
+@media(max-width:640px){.task-form-row{flex-direction:column}.task-row{align-items:flex-start;flex-direction:column}.task-row button{width:100%}}
