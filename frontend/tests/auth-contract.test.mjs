@@ -73,3 +73,11 @@ test("proposed membership migration denies browser access and remains syntactica
   assert.equal(membershipMigration.trim().endsWith(";"), true);
   assert.equal((membershipMigration.match(/CREATE INDEX/g) || []).length, 1);
 });
+
+
+test("phone-number uniqueness races never attach a new Auth user to an existing household", () => {
+  assert.match(identity, /if \(!householdId && !phoneAlreadyAssigned\) \{/);
+  assert.match(identity, /isolatedHouseholdResponse/);
+  assert.match(identity, /phone_number: null, memory_consent: false, outbound_call_consent: false/);
+  assert.doesNotMatch(identity, /if \(!householdId && !phoneAlreadyAssigned\) householdId = await findHouseholdByPhone/);
+});
