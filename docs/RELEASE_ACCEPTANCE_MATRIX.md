@@ -70,4 +70,4 @@ The demo telephony fail-closed change is committed on `fix/dashboard-fail-closed
 ## Sprint note — voice upload boundary (2026-10-16 IST)
 
 - Code-level acceptance: supported MIME types are normalized for codec parameters; WAV/WebM magic bytes are checked after a bounded read; mismatches return 415 before provider invocation; regression tests cover spoofing.
-- Status: CODE + CI PENDING. This is not a live browser/provider test and does not establish full media-parser safety. Validate actual browser-produced WebM/WAV fixtures on supported mobile browsers before release.
+- Status: CODE + CI PENDING. Run #963 caught an existing voice endpoint contract test that did not include HTTP 415; this was updated to reflect the intended fail-closed malformed-media response. The follow-up exact-head run must pass. This is not a live browser/provider test and does not establish full media-parser safety. Validate actual browser-produced WebM/WAV fixtures on supported mobile browsers before release.
