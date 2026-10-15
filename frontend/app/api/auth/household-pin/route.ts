@@ -1,5 +1,5 @@
 import { isAuthRateLimited } from "../../../../lib/auth-rate-limit.mjs";
-import { readBoundedJson } from "../../../../lib/auth-request";
+import { readBoundedJson } from "../../../../lib/auth-request.mjs";
 import {
   createHouseholdMembership,
   findHouseholdMembership,
