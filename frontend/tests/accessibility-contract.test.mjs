@@ -30,3 +30,17 @@ test("dashboard distinguishes persisted consent from automatic memory storage", 
   assert.match(dashboard, /The conversation workflow does not yet write memories automatically/);
   assert.doesNotMatch(dashboard, /Consent-led/);
 });
+
+
+test("household task and memory controls have labels and accessible actions", () => {
+  assert.match(dashboard, /label htmlFor="household-task-title"/);
+  assert.match(dashboard, /id="household-task-title"/);
+  assert.match(dashboard, /label htmlFor="memory-type"/);
+  assert.match(dashboard, /label htmlFor="memory-key"/);
+  assert.match(dashboard, /label htmlFor="memory-value"/);
+  assert.match(dashboard, /Mark complete/);
+  assert.match(dashboard, /Cancel task/);
+  assert.match(dashboard, /Delete saved memory/);
+  assert.match(dashboard, /aria-live="polite"/);
+  assert.match(dashboard, /aria-live="assertive"/);
+});
