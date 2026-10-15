@@ -43,9 +43,10 @@ The browser does not need a direct API URL; requests go through the same-origin 
 - Set `SUPABASE_URL` and `SUPABASE_SECRET_KEY` as **server-only** Vercel environment variables. The secret key is used only by the Next.js server to find/create the household associated with a verified phone; never use a `NEXT_PUBLIC_*` name for it.
 - Enable Phone authentication in Supabase Auth and configure an SMS provider in the Supabase dashboard. This repository cannot configure the SMS provider or verify delivery without administrator access and provider credentials.
 - Test request OTP, verify OTP, session refresh, sign-out, duplicate first-login household creation, and an invalid/unverified session.
-- The application maps a confirmed Supabase Auth user ID to a Saathi household through `saathi_household_memberships`; a phone number alone never grants access, avoiding recycled-number takeover. The membership table is currently a proposed migration outside active discovery and must not be applied until migration-history reconciliation is approved. New households start with memory and outbound-call consent disabled.
+- Phone OTP is followed by a separate eight-digit household PIN. The PIN is stored as a server-keyed HMAC hash, and a signed HttpOnly household-context cookie expires after one hour. A phone number alone never grants access, protecting against number recycling.
+- The application maps a confirmed Supabase Auth user ID to a Saathi household through `saathi_household_memberships`. The membership table is currently a proposed migration outside active discovery and must not be applied until migration-history reconciliation is approved. New households start with memory and outbound-call consent disabled.
 - The consent panel reads and writes purpose-specific consent through the authenticated same-origin proxy. Memory revocation relies on the existing database trigger to purge stored memories.
-- If the household table, secret key, or verified session is unavailable, household-specific actions fail closed. Do not enable memory or advertise personalized household workflows until the live test passes.
+- If the membership migration, secret keys, shared rate limiter, or verified household session is unavailable, household-specific actions fail closed. Do not enable memory or advertise personalized household workflows until the live test passes.
 
 ## 4. Configure live providers one at a time
 
