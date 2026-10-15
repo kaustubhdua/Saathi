@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import re
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -36,19 +37,66 @@ class AgentOutcome:
     results: tuple[ToolResult, ...] = ()
 
 
+def _valid_weather_number(value: object) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
+
+
+def _valid_weather_probability(value: object) -> bool:
+    return _valid_weather_number(value) and 0 <= value <= 100
+
+
+def _weather_observation_note(data: dict[str, object]) -> str:
+    value = data.get("observed_at")
+    if not isinstance(value, str):
+        return ""
+    try:
+        observed_at = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return ""
+    if observed_at.tzinfo is None:
+        return ""
+    return f" प्रदाता का अवलोकन समय {observed_at.astimezone(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')} है।"
+
+
 def _weather_reply(data: dict[str, object], message: str) -> str:
     lowered = message.casefold()
-    if any(term in lowered for term in ("कल", "tomorrow", "tomorrow's")) and data.get("tomorrow_rain_probability_pct") is not None:
-        probability = data["tomorrow_rain_probability_pct"]
-        date = data.get("tomorrow_date") or "कल"
+    observation_note = _weather_observation_note(data)
+    wants_tomorrow = any(term in lowered for term in ("कल", "tomorrow", "tomorrow's"))
+
+    if wants_tomorrow:
+        probability = data.get("tomorrow_rain_probability_pct")
+        if not _valid_weather_probability(probability):
+            return (
+                "कल की बारिश की संभावना उपलब्ध forecast में नहीं मिली, इसलिए मैं इसे अनुमान से नहीं बताऊँगा।"
+                + observation_note
+            )
+        date = data.get("tomorrow_date")
+        date_label = date if isinstance(date, str) and date.strip() else "कल"
         rainfall = data.get("tomorrow_precipitation_mm")
-        extra = f" और अनुमानित वर्षा {rainfall} mm" if rainfall is not None else ""
-        return f"उपलब्ध मौसम forecast के अनुसार {date} को बारिश की अधिकतम संभावना {probability}% है{extra}।"
-    probability = data.get("rain_probability_pct", data.get("next_24h_rain_probability_max", 0))
-    temperature = data.get("temperature_c", "उपलब्ध नहीं")
-    if any(term in lowered for term in ("आज", "today", "aaj")):
-        return f"उपलब्ध मौसम जानकारी के अनुसार वर्तमान तापमान {temperature}°C है और अगले 24 घंटे में बारिश की अधिकतम संभावना {probability}% है।"
-    return f"उपलब्ध मौसम जानकारी के अनुसार तापमान {temperature}°C है और अगले 24 घंटे में बारिश की अधिकतम संभावना {probability}% है。"
+        extra = f" और अनुमानित वर्षा {rainfall} mm" if _valid_weather_number(rainfall) and rainfall >= 0 else ""
+        return (
+            f"उपलब्ध मौसम forecast के अनुसार {date_label} को बारिश की अधिकतम संभावना {probability}% है{extra}।"
+            + observation_note
+        )
+
+    probability = data.get("rain_probability_pct")
+    if not _valid_weather_probability(probability):
+        probability = data.get("next_24h_rain_probability_max")
+    temperature = data.get("temperature_c")
+    has_temperature = _valid_weather_number(temperature)
+    has_probability = _valid_weather_probability(probability)
+    wants_today = any(term in lowered for term in ("आज", "today", "aaj"))
+
+    if wants_today:
+        temperature_text = f"वर्तमान तापमान {temperature}°C" if has_temperature else "वर्तमान तापमान उपलब्ध नहीं है"
+    else:
+        temperature_text = f"तापमान {temperature}°C" if has_temperature else "तापमान उपलब्ध नहीं है"
+    probability_text = (
+        f"अगले 24 घंटे में बारिश की अधिकतम संभावना {probability}%"
+        if has_probability
+        else "अगले 24 घंटे में बारिश की संभावना उपलब्ध नहीं है"
+    )
+    return "उपलब्ध मौसम forecast के अनुसार " + temperature_text + " और " + probability_text + "।" + observation_note
 
 
 def _catalogue_scheme_response(scheme) -> tuple[str, ToolResult]:

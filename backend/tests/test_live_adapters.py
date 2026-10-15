@@ -1,5 +1,7 @@
 import asyncio
 import base64
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 from app import http_tools, provider_adapters
 
@@ -38,8 +40,10 @@ class FakeClient:
 
 
 def test_open_meteo_adapter_preserves_coordinates(monkeypatch):
+    local_time = datetime.now(ZoneInfo("Asia/Kolkata")).replace(minute=0, second=0, microsecond=0)
     FakeClient.response = FakeResponse({
-        "current": {"temperature_2m": 31, "precipitation": 0.2},
+        "timezone": "Asia/Kolkata",
+        "current": {"time": local_time.isoformat(timespec="minutes"), "temperature_2m": 31, "precipitation": 0.2},
         "hourly": {"precipitation_probability": [10, 35, 20]},
     })
     monkeypatch.setattr(http_tools.httpx, "AsyncClient", FakeClient)
@@ -49,6 +53,8 @@ def test_open_meteo_adapter_preserves_coordinates(monkeypatch):
     assert result.data["longitude"] == 77.21
     assert result.data["rain_probability_pct"] == 35
     assert result.source.name == "Open-Meteo"
+    assert result.source.observed_at is not None
+    assert result.source.freshness_status == "current"
 
 
 def test_mandi_adapter_maps_government_record(monkeypatch):

@@ -1,12 +1,26 @@
 from datetime import datetime, timezone
+from math import isfinite
+from zoneinfo import ZoneInfo
 
 import httpx
 
 from .provenance import SourceRecord, ToolResult
-from .market_freshness import assess_mandi_freshness
+from .market_freshness import assess_mandi_freshness, assess_weather_freshness
 
 
 OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast"
+
+
+def _is_finite_number(value: object) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool) and isfinite(value)
+
+
+def _is_probability(value: object) -> bool:
+    return _is_finite_number(value) and 0 <= value <= 100
+
+
+def _is_nonnegative_number(value: object) -> bool:
+    return _is_finite_number(value) and value >= 0
 
 
 class OpenMeteoWeatherTool:
@@ -17,7 +31,7 @@ class OpenMeteoWeatherTool:
         params = {
             "latitude": latitude,
             "longitude": longitude,
-            "current": "temperature_2m,precipitation",
+            "current": "time,temperature_2m,precipitation",
             "hourly": "precipitation_probability,temperature_2m",
             "daily": "precipitation_probability_max,precipitation_sum",
             "forecast_days": 2,
@@ -30,22 +44,75 @@ class OpenMeteoWeatherTool:
                 response.raise_for_status()
                 payload = response.json()
 
-            current = payload.get("current", {})
-            hourly = payload.get("hourly", {})
-            probabilities = hourly.get("precipitation_probability", [])
+            if not isinstance(payload, dict):
+                raise ValueError("weather_payload_not_object")
+            current = payload.get("current")
+            hourly = payload.get("hourly")
+            timezone_name = payload.get("timezone")
+            current_time = current.get("time") if isinstance(current, dict) else None
+            if not isinstance(current, dict) or not isinstance(hourly, dict):
+                raise ValueError("weather_payload_missing_current_or_hourly")
+            if not isinstance(timezone_name, str) or not timezone_name.strip():
+                raise ValueError("weather_payload_missing_timezone")
+            if not isinstance(current_time, str) or not current_time.strip():
+                raise ValueError("weather_payload_missing_observation_time")
+
+            provider_timezone = ZoneInfo(timezone_name)
+            observed_at = datetime.fromisoformat(current_time)
+            if observed_at.tzinfo is None:
+                observed_at = observed_at.replace(tzinfo=provider_timezone)
+            observed_at = observed_at.astimezone(timezone.utc)
+
             temperature = current.get("temperature_2m")
             precipitation = current.get("precipitation")
-            rain_probability = max(probabilities or [0])
-            daily = payload.get("daily", {})
-            daily_dates = daily.get("time") or []
-            daily_probabilities = daily.get("precipitation_probability_max") or []
-            daily_precipitation = daily.get("precipitation_sum") or []
-            tomorrow_probability = daily_probabilities[1] if len(daily_probabilities) > 1 else None
-            tomorrow_precipitation = daily_precipitation[1] if len(daily_precipitation) > 1 else None
-            tomorrow_date = daily_dates[1] if len(daily_dates) > 1 else None
+            probabilities = hourly.get("precipitation_probability")
+            if not _is_finite_number(temperature):
+                raise ValueError("weather_payload_missing_valid_temperature")
+            if not isinstance(probabilities, list) or not probabilities or any(not _is_probability(value) for value in probabilities):
+                raise ValueError("weather_payload_missing_valid_hourly_probabilities")
+            rain_probability = max(probabilities)
+            if not _is_nonnegative_number(precipitation):
+                precipitation = None
 
-            if temperature is None or not probabilities:
-                raise ValueError("weather_payload_missing_required_fields")
+            daily = payload.get("daily")
+            if not isinstance(daily, dict):
+                daily = {}
+            daily_dates = daily.get("time") if isinstance(daily.get("time"), list) else []
+            daily_probabilities = daily.get("precipitation_probability_max") if isinstance(daily.get("precipitation_probability_max"), list) else []
+            daily_precipitation = daily.get("precipitation_sum") if isinstance(daily.get("precipitation_sum"), list) else []
+            tomorrow_date = daily_dates[1] if len(daily_dates) > 1 and isinstance(daily_dates[1], str) else None
+            tomorrow_probability = daily_probabilities[1] if len(daily_probabilities) > 1 else None
+            if not _is_probability(tomorrow_probability):
+                tomorrow_probability = None
+            tomorrow_precipitation = daily_precipitation[1] if len(daily_precipitation) > 1 else None
+            if not _is_nonnegative_number(tomorrow_precipitation):
+                tomorrow_precipitation = None
+
+            freshness = assess_weather_freshness(observed_at)
+            retrieved_at = datetime.now(timezone.utc)
+            source = SourceRecord(
+                name="Open-Meteo",
+                url=OPEN_METEO_URL,
+                retrieved_at=retrieved_at,
+                observed_at=observed_at,
+                freshness_status=freshness.status,
+                freshness_note=(
+                    f"LIVE Open-Meteo response; observation {observed_at.isoformat()} UTC-normalized; "
+                    f"status={freshness.status}. Forecast values can change."
+                ),
+            )
+            if freshness.status != "current":
+                return ToolResult(
+                    ok=False,
+                    error_code=f"WEATHER_OBSERVATION_{freshness.status.upper()}",
+                    retryable=True,
+                    data={
+                        "observed_at": observed_at.isoformat(),
+                        "freshness_status": freshness.status,
+                        "observation_age_minutes": freshness.age_minutes,
+                    },
+                    source=source,
+                )
 
             return ToolResult(
                 ok=True,
@@ -59,15 +126,14 @@ class OpenMeteoWeatherTool:
                     "tomorrow_date": tomorrow_date,
                     "tomorrow_rain_probability_pct": tomorrow_probability,
                     "tomorrow_precipitation_mm": tomorrow_precipitation,
+                    "observed_at": observed_at.isoformat(),
+                    "timezone": timezone_name,
+                    "freshness_status": freshness.status,
+                    "observation_age_minutes": freshness.age_minutes,
                 },
-                source=SourceRecord(
-                    name="Open-Meteo",
-                    url=OPEN_METEO_URL,
-                    retrieved_at=datetime.now(timezone.utc),
-                    freshness_note="LIVE provider response; forecast values can change.",
-                ),
+                source=source,
             )
-        except (httpx.HTTPError, ValueError, TypeError, KeyError) as exc:
+        except (httpx.HTTPError, ValueError, TypeError, KeyError, OverflowError) as exc:
             return ToolResult(
                 ok=False,
                 error_code="WEATHER_PROVIDER_ERROR",

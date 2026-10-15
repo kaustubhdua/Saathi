@@ -29,3 +29,10 @@ test("dashboard does not claim consent was collected when it was not", () => {
   assert.doesNotMatch(dashboard, /Consent-led/);
   assert.match(dashboard, /No consent is being collected or stored here/);
 });
+
+
+
+test("source rows show provider observation provenance separately from retrieval time", () => {
+  assert.match(dashboard, /source\.freshness_note/);
+  assert.match(dashboard, /Retrieved ·/);
+});

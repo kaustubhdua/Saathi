@@ -1,4 +1,6 @@
 import asyncio
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 
 from app.http_tools import DataGovMandiTool, OpenMeteoWeatherTool
 
@@ -17,8 +19,10 @@ class FakeResponse:
 def test_weather_forecast_exposes_tomorrow_values(monkeypatch):
     import app.http_tools as module
 
+    local_time = datetime.now(ZoneInfo("Asia/Kolkata")).replace(minute=0, second=0, microsecond=0)
     payload = {
-        "current": {"temperature_2m": 27, "precipitation": 0},
+        "timezone": "Asia/Kolkata",
+        "current": {"time": local_time.isoformat(timespec="minutes"), "temperature_2m": 27, "precipitation": 0},
         "hourly": {"precipitation_probability": [10, 20, 30]},
         "daily": {
             "time": ["2026-10-11", "2026-10-12"],
@@ -43,6 +47,8 @@ def test_weather_forecast_exposes_tomorrow_values(monkeypatch):
     assert result.data["tomorrow_date"] == "2026-10-12"
     assert result.data["tomorrow_rain_probability_pct"] == 75
     assert result.data["tomorrow_precipitation_mm"] == 8.5
+    assert result.source is not None and result.source.observed_at is not None
+    assert result.source.freshness_status == "current"
 
 
 def test_mandi_prefers_newest_arrival_date_not_response_order(monkeypatch):
@@ -116,3 +122,14 @@ def test_mandi_equal_match_and_date_stays_ambiguous(monkeypatch):
     )
     assert not result.ok
     assert result.error_code == "MANDI_AMBIGUOUS_MARKET"
+
+
+
+def test_weather_freshness_classifies_current_stale_future_and_naive_times():
+    from app.market_freshness import assess_weather_freshness
+
+    now = datetime(2026, 10, 16, 12, 0, tzinfo=timezone.utc)
+    assert assess_weather_freshness(datetime(2026, 10, 16, 11, 0, tzinfo=timezone.utc), now=now).status == "current"
+    assert assess_weather_freshness(datetime(2026, 10, 16, 8, 0, tzinfo=timezone.utc), now=now).status == "stale"
+    assert assess_weather_freshness(datetime(2026, 10, 16, 12, 10, tzinfo=timezone.utc), now=now).status == "future"
+    assert assess_weather_freshness(datetime(2026, 10, 16, 11, 0), now=now).status == "unknown"
