@@ -14,6 +14,7 @@ import {
 type Source = { name: string; url: string; retrieved_at?: string | null; freshness_note?: string | null; freshness_status?: string | null };
 type Evidence = { name: string; url: string; retrieved_at?: string | null; freshness_note?: string | null; freshness_status?: string | null };
 type ReadyCapabilities = { core_agent?: boolean; telephony?: boolean; telephony_realtime?: boolean; reasoning?: boolean; mandi?: boolean; speech?: boolean; weather?: boolean; documents?: boolean };
+type ConsentSnapshot = { memory: { granted: boolean; recorded_at: string | null }; outbound_calls: { granted: boolean; recorded_at: string | null } };
 
 type BrowserSpeechRecognition = {
   lang: string;
@@ -76,6 +77,11 @@ export default function Dashboard() {
   const [apiReady, setApiReady] = useState(false);
   const [capabilities, setCapabilities] = useState<ReadyCapabilities>({});
   const [demoMode, setDemoMode] = useState(true);
+  const [authStatus, setAuthStatus] = useState<{ loading: boolean; configured: boolean; phoneSuffix: string | null }>({ loading: true, configured: false, phoneSuffix: null });
+  const [consentStatus, setConsentStatus] = useState<ConsentSnapshot | null>(null);
+  const [consentBusy, setConsentBusy] = useState(false);
+  const [consentMessage, setConsentMessage] = useState<string | null>(null);
+  const [consentError, setConsentError] = useState<string | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -94,6 +100,70 @@ export default function Dashboard() {
       });
     return () => controller.abort();
   }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch("/api/auth/session", { signal: controller.signal, cache: "no-store" })
+      .then(async (response) => {
+        const body = await response.json();
+        setAuthStatus({ loading: false, configured: body.authConfigured === true, phoneSuffix: body.phoneVerified === true ? body.phoneSuffix : null });
+      })
+      .catch(() => setAuthStatus({ loading: false, configured: false, phoneSuffix: null }));
+    return () => controller.abort();
+  }, []);
+
+  useEffect(() => {
+    if (!authStatus.phoneSuffix) {
+      setConsentStatus(null);
+      return;
+    }
+    const controller = new AbortController();
+    fetch("/backend/api/v1/household/consent", { signal: controller.signal, cache: "no-store" })
+      .then(async (response) => {
+        const body = await response.json();
+        if (!response.ok) throw new Error(body.detail || "Consent status is unavailable.");
+        setConsentStatus(body);
+        setConsentError(null);
+      })
+      .catch((cause) => {
+        if (!controller.signal.aborted) setConsentError(cause instanceof Error ? cause.message : "Consent status is unavailable.");
+      });
+    return () => controller.abort();
+  }, [authStatus.phoneSuffix]);
+
+  const updateConsent = async (purpose: "memory" | "outbound_calls", granted: boolean) => {
+    setConsentBusy(true);
+    setConsentError(null);
+    setConsentMessage(null);
+    try {
+      const response = await fetch("/backend/api/v1/household/consent", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ purpose, granted }),
+      });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.detail || "Consent could not be updated.");
+      const statusResponse = await fetch("/backend/api/v1/household/consent", { cache: "no-store" });
+      const statusBody = await statusResponse.json();
+      if (!statusResponse.ok) throw new Error(statusBody.detail || "Consent status could not be refreshed.");
+      setConsentStatus(statusBody);
+      setConsentMessage(purpose === "memory"
+        ? (granted ? "Household memory consent saved." : "Household memory consent revoked; stored memory is purged by the database guard.")
+        : (granted ? "Outbound-call consent saved. This does not place a call." : "Outbound-call consent revoked."));
+    } catch (cause) {
+      setConsentError(cause instanceof Error ? cause.message : "Consent could not be updated.");
+    } finally {
+      setConsentBusy(false);
+    }
+  };
+
+  const signOut = async () => {
+    await fetch("/api/auth/signout", { method: "POST" }).catch(() => undefined);
+    setAuthStatus((current) => ({ ...current, loading: false, phoneSuffix: null }));
+    setConsentStatus(null);
+    setConsentMessage(null);
+    setConsentError(null);
+  };
 
   const trace = useMemo(() => {
     const tool = result?.tool_name || "pending";
@@ -270,8 +340,9 @@ export default function Dashboard() {
           </div>
           <div className="header-badges">
             <span role="status" aria-live="polite"><Zap size={13} /> {apiOnline ? (apiReady ? "API ready" : "API online") : "API offline"}</span>
-            <span><ShieldCheck size={13} /> Household memory off</span>
+            <span><ShieldCheck size={13} /> {consentStatus?.memory.granted ? "Memory consent granted" : "Memory consent off"}</span>
             <span><Languages size={13} /> Hindi-first</span>
+            {authStatus.phoneSuffix ? <button type="button" className="auth-status-link" onClick={signOut}>Verified phone · ••••{authStatus.phoneSuffix} · Sign out</button> : <Link href="/login" className="auth-status-link">{authStatus.loading ? "Checking sign-in…" : authStatus.configured ? "Sign in with phone" : "Phone sign-in not configured"}</Link>}
           </div>
         </header>
 
@@ -397,9 +468,24 @@ export default function Dashboard() {
         </section>
 
         <section className="consent-card" aria-labelledby="consent-title">
-          <div className="context-title"><div><span className="panel-kicker">HOUSEHOLD MEMORY</span><h3 id="consent-title">Remember only with permission.</h3></div><ShieldCheck size={18} /></div>
-          <p className="consent-intro">Saathi separates useful continuity from silent surveillance. Household memory remains a prototype-only capability until server-side consent persistence is enabled.</p>
-          <div className="consent-note"><ShieldCheck size={14} /> Household memory is disabled in this prototype. No consent is being collected or stored here; persistent memory remains unavailable until authenticated identity, server-side consent and deletion workflows are verified.</div>
+          <div className="context-title"><div><span className="panel-kicker">HOUSEHOLD CONSENT</span><h3 id="consent-title">You stay in control.</h3></div><ShieldCheck size={18} /></div>
+          <p className="consent-intro">Consent is separate by purpose. Sign in with a verified phone number to view and change persisted permissions. No permission is enabled by default.</p>
+          {!authStatus.phoneSuffix ? (
+            <div className="consent-note"><ShieldCheck size={14} /> {authStatus.configured ? "Sign in with a verified phone to manage household consent." : "Phone sign-in is not configured in this deployment. Household consent and memory remain unavailable."} {authStatus.configured && <Link href="/login">Sign in with phone</Link>}</div>
+          ) : (
+            <div className="consent-actions">
+              <div className="consent-choice">
+                <div><strong>Household memory</strong><p>Grant permission for future household-memory storage. The conversation workflow does not yet write memories automatically; revoking this permission purges any stored memory through the database guard.</p><span className="consent-state" role="status">{consentStatus ? (consentStatus.memory.granted ? "Granted" : "Not granted") : "Loading status…"}</span></div>
+                <div className="consent-buttons"><button type="button" className="voice-button" onClick={() => void updateConsent("memory", true)} disabled={consentBusy || !consentStatus || consentStatus.memory.granted}>Enable memory</button><button type="button" className="voice-button" onClick={() => void updateConsent("memory", false)} disabled={consentBusy || !consentStatus || !consentStatus.memory.granted}>Revoke memory</button></div>
+              </div>
+              <div className="consent-choice">
+                <div><strong>Outbound calls</strong><p>Allow explicitly requested follow-up calls. This permission is separate from memory and does not itself place a call.</p><span className="consent-state" role="status">{consentStatus ? (consentStatus.outbound_calls.granted ? "Granted" : "Not granted") : "Loading status…"}</span></div>
+                <div className="consent-buttons"><button type="button" className="voice-button" onClick={() => void updateConsent("outbound_calls", true)} disabled={consentBusy || !consentStatus || consentStatus.outbound_calls.granted}>Allow calls</button><button type="button" className="voice-button" onClick={() => void updateConsent("outbound_calls", false)} disabled={consentBusy || !consentStatus || !consentStatus.outbound_calls.granted}>Revoke calls</button></div>
+              </div>
+            </div>
+          )}
+          {consentMessage && <p role="status" aria-live="polite">{consentMessage}</p>}
+          {consentError && <p className="voice-error" role="alert" aria-live="assertive">{consentError}</p>}
         </section>
 
         <section className="fallback-card" aria-labelledby="fallback-title">
