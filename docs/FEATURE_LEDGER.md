@@ -1,6 +1,6 @@
 # Saathi Release Feature Ledger
 
-Last verified: 2026-10-15 UTC
+Last verified: 2026-10-16 UTC
 
 - Main baseline for this branch: `edd5164fc406b87a5ab811d9746ad21e7e4c1d1f` after PR #66.
 - P0/P1 API proxy and source freshness: [PR #57](https://github.com/kaustubhdua/Saathi/pull/57), merged.
@@ -8,7 +8,7 @@ Last verified: 2026-10-15 UTC
 - Telephony callback lifecycle and live-call safety gate: [PR #61](https://github.com/kaustubhdua/Saathi/pull/61), merged.
 - Dashboard keyboard accessibility and truthful status labels: [PR #63](https://github.com/kaustubhdua/Saathi/pull/63), merged.
 - Shared production rate limiting: [PR #64](https://github.com/kaustubhdua/Saathi/pull/64), merged; production requires configured Upstash Redis and a trusted single-IP header.
-- Phone OTP, household PIN, purpose-specific consent, household tasks and explicit memory: [PR #68](https://github.com/kaustubhdua/Saathi/pull/68), draft. Exact-head CI run #904 passed all five jobs on `46827771e5f2db7431ca66afda3bd227a25f68ea`, including active memory-consent locking, task idempotency-query encoding, and full dependency-audit reporting. Live Auth/SMS, migration-history and provider gates remain.
+- Phone OTP, household PIN, purpose-specific consent, household tasks and explicit memory: [PR #68](https://github.com/kaustubhdua/Saathi/pull/68), draft. Atomic enrollment now calls the proposed `saathi_enroll_household` RPC, uses a fixed `pg_catalog` search path, serializes concurrent enrollment by Auth user ID, and limits membership writes to the function owner. Contract tests assert the RPC boundary and grants. Check PR #68 for the latest exact-head CI; live Auth/SMS, migration-history and provider gates remain.
 - Migration quarantine/index proposal: [PR #58](https://github.com/kaustubhdua/Saathi/pull/58), draft; do not merge until all environments' migration histories are reconciled.
 - [Release acceptance matrix](RELEASE_ACCEPTANCE_MATRIX.md)
 - [Provider verification plan](PROVIDER_VERIFICATION.md)
@@ -16,7 +16,7 @@ Last verified: 2026-10-15 UTC
 
 ## Verified
 
-- Read-only verification of the Nihdhoom project on 2026-10-15 confirms eight `saathi_*` tables with RLS enabled, six recorded Saathi migrations including `saathi_memory_consent_locking`, and no `saathi_household_memberships` table. The two legacy unprefixed migration versions/tables remain absent in this project. No live DDL or production deployment was performed; other target environments still need migration-history reconciliation.
+- Read-only verification of the active shared Nihdhoom project on 2026-10-16 confirms six recorded Saathi migrations and that `saathi_households` exists, but `saathi_household_memberships` and `saathi_enroll_household` do not yet exist in the live schema. The proposed auth migration has not been applied. The two legacy unprefixed migration versions/tables remain absent in this project. No live DDL or production deployment was performed; other target environments still need migration-history reconciliation.
 - A separate Supabase project named `Saathi` in `ap-northeast-2` is `INACTIVE`; its read-only migration-history query timed out. It was not restored. That environment remains unverified, and restoration must not be attempted without explicit operator approval.
 - PR #57 merged as `e8a13bdd0022f33707e6a9338d3cc7fcdf039615`; exact-head CI run #770 passed all five jobs, and main run #771 passed.
 - PR #59 merged as `d048170180a24a36280c557150753c687139d9d7`; exact-head CI run #774 passed all five jobs.
@@ -33,7 +33,7 @@ Last verified: 2026-10-15 UTC
 - Memory consent is explicitly described as permission for future storage because automatic conversation-memory writes are not yet connected.
 - The membership migration remains proposed outside active discovery until PR #58's migration-history reconciliation is approved. Until that table exists, household-specific requests fail closed. Enrollment now creates a separate phone-unlinked household if a concurrent unique-phone insert conflicts; it never adopts a household by looking up the conflicting phone number.
 - The feature requires public `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (or the existing public anon key), plus server-only `SUPABASE_URL` and `SUPABASE_SECRET_KEY`. Never expose the secret key through `NEXT_PUBLIC_*`.
-- The authentication rate limiter rejects missing, malformed or comma-separated trusted client IP values in production before any Upstash request; development retains a local fallback and caps bucket storage at 5,000 entries. The household enrollment flow also isolates concurrent phone-number uniqueness conflicts rather than adopting an existing household. Both fixes and regression tests are committed to this auth branch; exact-head CI run #894 passed all five jobs on `ae17c5e1f7b5daa6f0fce6a60228c79292f87f5c`.
+- The authentication rate limiter rejects missing, malformed or comma-separated trusted client IP values in production before any Upstash request; development retains a local fallback and caps bucket storage at 5,000 entries. Household enrollment was subsequently moved from separate REST writes to a transaction-scoped RPC, preventing an orphan household on a membership conflict. The RPC remains proposed and must be tested in an authorized isolated database before activation.
 
 ## Candidate integration — household tasks and explicit memory
 
