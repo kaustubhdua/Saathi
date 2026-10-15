@@ -6,8 +6,9 @@ This is an evidence ledger, not a declaration that release gates have passed. Au
 
 ## Current baseline
 
-- Main after P0/P1 merge: `e8a13bdd0022f33707e6a9338d3cc7fcdf039615`.
-- PR #59 adds production fail-closed behavior for unverified household identifiers; CI run #772 is pending at the time this document was authored.
+- Main baseline for this branch: `fb795e62f5dbaaf6d57ef150e2877382c8a32655` after PR #64.
+- PR #57 (API proxy/source freshness), #59 (identity fail-closed guard), #61 (telephony callback state handling), #63 (dashboard accessibility) and #64 (shared production rate limiting) are merged.
+- PR #65 proposes phone OTP, user-to-household mapping and consent workflows; CI, migration activation and live Auth/SMS tests remain outstanding.
 - PR #58 remains draft because other environments' migration histories are not verified.
 - Production Vercel configuration/deployment remains deferred until 2026-10-24.
 - No live provider test, live database DDL, or production deployment is claimed here.
@@ -16,47 +17,33 @@ This is an evidence ledger, not a declaration that release gates have passed. Au
 
 | # | Acceptance gate | Status | Evidence required |
 |---|---|---|---|
-| 1 | Browser API requests use the same-origin allowlisted proxy; server token never enters browser bundles | PARTIAL | PR #57 merged and exact-head CI green; inspect production build/environment and run hosted request tests |
-| 2 | Production readiness fails when operator auth is absent | CODE + CI | Backend test and exact-main CI; verify real deployment configuration |
-| 3 | Identity-to-household ownership is verified; caller-supplied UUID cannot select another household | PARTIAL / FAIL-CLOSED | PR #59 denies unverified IDs; verified identity provider and ownership journey not implemented |
-| 4 | Consent grant/status/revocation are persisted and identity-bound | NOT COMPLETE | Implement user identity and consent endpoints; test revocation and denial |
-| 5 | Memory writes require current consent; revocation deletes memory | SCHEMA FOUNDATION ONLY | Test real repository path and concurrent revoke/write behavior against isolated test DB |
-| 6 | Two households cannot read/update each other's tasks, memory or cases | NOT COMPLETE | Two-identity integration tests against non-production database |
-| 7 | Live weather and mandi results have correct source and observation/retrieval timestamps | NOT VERIFIED | Authorized provider tests; validate units, location matching, freshness and failure cases |
-| 8 | Browser voice completes real STT -> tool -> TTS with measured latency | NOT VERIFIED | Provider credentials, browser matrix, STT/TTS round-trip logs and p50/p95 latency |
-| 9 | Outbound phone calls require persisted purpose-specific consent; webhooks update call lifecycle idempotently | PARTIAL | Consent lookup exists; event processing into durable call-state transitions and provider signature contract remain |
-| 10 | Reminder/volunteer workflows persist, dispatch, retry, assign and resolve correctly | NOT COMPLETE | Durable dispatcher, atomic claims, retry/quiet-hour tests and operator queue evidence |
-| 11 | Mobile, keyboard, screen-reader, reduced-motion and WCAG 2.2 AA-oriented checks pass | NOT VERIFIED | Device/browser test results and accessibility audit |
-| 12 | Production performance, SEO, monitoring, rollback and deployed SHA are recorded | NOT VERIFIED | Lighthouse/Core Web Vitals, metadata checks, alerts/runbook, hosted smoke and rollback rehearsal |
+| 1 | Browser API requests use the same-origin allowlisted proxy; server token never enters browser bundles | CODE + CI | PR #57 merged; inspect production build/environment and run hosted request tests |
+| 2 | Production readiness fails when operator auth is absent | CODE + CI | Backend tests pass; verify real deployment configuration |
+| 3 | Production API traffic uses shared rate limiting and trusted client IP | CODE; DEPLOYMENT BLOCKED | PR #64 merged; configure Upstash credentials and verify hosting overwrites the trusted single-IP header |
+| 4 | Verified identity maps to a household; caller-supplied UUID cannot select another household | PARTIAL — PR #65 draft | Phone OTP code is proposed; review/apply auth-user membership migration after PR #58 reconciliation, then test number-recycling isolation |
+| 5 | Consent grant/status/revocation are persisted and identity-bound | PARTIAL — PR #65 draft | Consent UI/API added; verify real Supabase Auth, household mapping and persistence in an isolated test household |
+| 6 | Memory writes require current consent; revocation deletes memory | SCHEMA + API FOUNDATION | Automatic conversation-memory writes are not connected; test repository/trigger path and concurrent revoke/write behavior |
+| 7 | Two households cannot read/update each other's tasks, memory or cases | NOT COMPLETE | Two-identity integration tests against a non-production database |
+| 8 | Live weather and mandi results have correct source and observation/retrieval timestamps | NOT VERIFIED | Authorized provider tests; validate units, location matching, freshness and failure cases |
+| 9 | Browser voice completes real STT -> tool -> TTS with measured latency | NOT VERIFIED | Provider credentials, browser matrix, STT/TTS round-trip logs and p50/p95 latency |
+| 10 | Outbound phone calls require persisted purpose-specific consent; webhooks update call lifecycle idempotently | PARTIAL / FAIL-CLOSED | PR #61 adds state processing; keep live calls disabled until the real provider signature contract is proven and consent is checked on the actual call path |
+| 11 | Reminder/volunteer workflows persist, dispatch, retry, assign and resolve correctly | NOT COMPLETE | Durable dispatcher, atomic claims, retry/quiet-hour tests and operator queue evidence |
+| 12 | Mobile, keyboard, screen-reader, reduced-motion and WCAG 2.2 AA-oriented checks pass | PARTIAL | PR #63 adds keyboard tab navigation and live regions; complete real-device/browser and accessibility audit |
+| 13 | Core Web Vitals, SEO, responsive behavior and error states are measured and pass | NOT VERIFIED | Lighthouse/field data, SEO checks and hosted browser smoke results |
+| 14 | Reproducible frontend build uses a reviewed lockfile and npm ci | NOT COMPLETE | Generate and commit frontend/package-lock.json, switch CI to npm ci and verify exact SHA |
+| 15 | Exact release commit has complete CI, deployed SHA, smoke tests, monitoring and rollback evidence | NOT COMPLETE | All manual gates, deployment evidence, runbook and rollback rehearsal |
 
-## Automated verification
+## Evidence links
 
-- CI on PR #57 head `03483bc3450a08cad161765494758e06c3093cec`: all five jobs passed; PR was subsequently merged.
-- Main push run #771 on `e8a13bdd0022f33707e6a9338d3cc7fcdf039615`: success.
-- PR #59 exact-head run #772: check its live status before merge.
-- CI uses `npm install`, not `npm ci`; frontend lockfile reproducibility remains open.
-- CI provider tests are stubs/smoke checks and do not prove live weather, mandi, Sarvam, document AI or Exotel functionality.
+- [PR #57](https://github.com/kaustubhdua/Saathi/pull/57) — API proxy and source freshness.
+- [PR #59](https://github.com/kaustubhdua/Saathi/pull/59) — fail-closed household ID guard.
+- [PR #61](https://github.com/kaustubhdua/Saathi/pull/61) — webhook state processing and live-call gate.
+- [PR #63](https://github.com/kaustubhdua/Saathi/pull/63) — dashboard accessibility contracts and truthful labels.
+- [PR #64](https://github.com/kaustubhdua/Saathi/pull/64) — shared production rate limiting.
+- [PR #65](https://github.com/kaustubhdua/Saathi/pull/65) — phone OTP, household mapping and consent (draft).
+- [PR #58](https://github.com/kaustubhdua/Saathi/pull/58) — migration safety and Saathi-only indexes (draft).
+- [Provider verification plan](PROVIDER_VERIFICATION.md).
 
-## Data-safety rules
+## Release rule
 
-- Only `saathi_*` tables may be changed in the shared Nihdhoom project.
-- Do not run a migration push or apply the index migration until all relevant environments' migration histories are reconciled.
-- Do not change unrelated Telegram tables, shared SECURITY DEFINER functions, or unused shared indexes as part of Saathi.
-- Keep secrets server-side; never use `NEXT_PUBLIC_*` for API/provider tokens.
-- Do not deploy Vercel before 2026-10-24.
-
-
-## Merged change — PR #64
-
-| Gate | Candidate status | Required next evidence |
-|---|---|---|
-| Shared production rate limit | Merged as `fb795e62f5dbaaf6d57ef150e2877382c8a32655`; run #796 passed all five jobs on PR head `b6820fae1e7fbf70cebc931eb3647abdf864a293` | All exact-head CI jobs green; verify Upstash and trusted-IP header in the deployment environment before enabling production |
-| Local limiter memory bound | Merged; frontend test suite passed in run #796 | Exact-head frontend test suite green |
-| Live shared-store behavior | Not verified | Authorized non-production Redis test with redacted evidence; no credentials in Git or chat |
-
-
-## Frontend dependency reproducibility — PR #66
-
-- A committed `frontend/package-lock.json` was generated by the repository's own Node 24 CI install (not handwritten or inferred).
-- The frontend and dependency-audit jobs now use `npm ci` and the setup-node cache keys off the lockfile.
-- GitHub Actions run #809 passed all five jobs on candidate SHA `b08cb8c410413c41c963ceab3464420013cb7f5b`, including lockfile integrity, `npm ci`, lint, tests, TypeScript, build, dashboard smoke and dependency audit. Live provider/production verification remains separate.
+Do not call Saathi production-complete while any P0 authorization, migration safety, provider authentication, or manual acceptance gate is unresolved. Never infer live-provider success from mocked tests or a green build.

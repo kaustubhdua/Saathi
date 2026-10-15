@@ -24,8 +24,9 @@ test("dynamic API, voice and answer states are announced", () => {
   assert.match(dashboard, /aria-busy=\{loading\}/);
 });
 
-test("dashboard does not claim consent was collected when it was not", () => {
-  assert.match(dashboard, /Household memory off/);
+test("dashboard distinguishes persisted consent from automatic memory storage", () => {
+  assert.match(dashboard, /Memory consent off/);
+  assert.match(dashboard, /Grant permission for future household-memory storage/);
+  assert.match(dashboard, /The conversation workflow does not yet write memories automatically/);
   assert.doesNotMatch(dashboard, /Consent-led/);
-  assert.match(dashboard, /No consent is being collected or stored here/);
 });
