@@ -245,6 +245,65 @@ class SupabaseMemoryRepository(_SupabaseRepository):
         return bool(rows)
 
 
+class SupabaseVolunteerCaseRepository(_SupabaseRepository):
+    """Household-scoped requests for human help; does not imply a volunteer is assigned."""
+
+    @staticmethod
+    def _public_case(row: dict) -> dict[str, object]:
+        return {
+            "case_id": str(row["id"]),
+            "status": str(row["status"]),
+            "priority": str(row["priority"]),
+            "summary": str(row["summary"]),
+            "created_at": row.get("created_at"),
+            "updated_at": row.get("updated_at"),
+            "resolved_at": row.get("resolved_at"),
+        }
+
+    async def list_active_for_household(self, *, household_id: str) -> list[dict[str, object]]:
+        household_uuid = self._uuid(household_id)
+        rows = await self._request(
+            "GET",
+            "saathi_volunteer_cases"
+            f"?household_id=eq.{household_uuid}"
+            "&status=in.(open,assigned,in_progress)"
+            "&select=id,status,priority,summary,created_at,updated_at,resolved_at"
+            "&order=created_at.desc",
+        )
+        return [self._public_case(row) for row in rows]
+
+    async def create(self, *, household_id: str, summary: str) -> dict[str, object]:
+        household_uuid = self._uuid(household_id)
+        rows = await self._request(
+            "POST",
+            "saathi_volunteer_cases",
+            {
+                "household_id": household_uuid,
+                "status": "open",
+                "priority": "normal",
+                "summary": summary,
+            },
+        )
+        if not rows:
+            raise SupabaseRepositoryError("household_help_case_create_failed")
+        return self._public_case(rows[0])
+
+    async def close(self, *, household_id: str, case_id: str) -> bool:
+        household_uuid = self._uuid(household_id)
+        case_uuid = self._uuid(case_id)
+        now = datetime.now(timezone.utc).isoformat()
+        rows = await self._request(
+            "PATCH",
+            "saathi_volunteer_cases"
+            f"?id=eq.{case_uuid}"
+            f"&household_id=eq.{household_uuid}"
+            "&status=in.(open,assigned,in_progress)"
+            "&select=id",
+            {"status": "closed", "updated_at": now, "resolved_at": now},
+        )
+        return bool(rows)
+
+
 class SupabaseTaskRepository(_SupabaseRepository):
     """Persistent task adapter with household-scoped reads and updates."""
 
