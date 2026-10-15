@@ -8,9 +8,9 @@ type RouteContext = { params: Promise<{ path: string[] }> };
 async function handle(request: Request, context: RouteContext) {
   const { path = [] } = await context.params;
   const routePath = path.join("/");
-  const identityRoutes = new Set(["api/v1/agent", "api/v1/voice/turn", "api/v1/household/consent", "api/v1/household/tasks", "api/v1/household/tasks/status", "api/v1/household/memories", "api/v1/household/memories/delete"]);
+  const householdRoutes = new Set(["api/v1/household/consent", "api/v1/household/tasks", "api/v1/household/tasks/status", "api/v1/household/memories", "api/v1/household/memories/delete"]);
   let verifiedContext = null;
-  if (identityRoutes.has(routePath)) {
+  if (householdRoutes.has(routePath)) {
     try {
       verifiedContext = await resolveVerifiedHouseholdContext();
     } catch (cause) {
@@ -25,6 +25,11 @@ async function handle(request: Request, context: RouteContext) {
         { status: requiresUserAction ? 401 : 503, headers: { "Cache-Control": "no-store" } },
       );
     }
+  } else if (routePath === "api/v1/agent" || routePath === "api/v1/voice/turn") {
+    // General conversation and voice should remain usable without an account.
+    // Only attach household context when the current user has completed OTP + PIN.
+    // Missing identity must never block anonymous, non-persistent assistance.
+    try { verifiedContext = await resolveVerifiedHouseholdContext(); } catch { verifiedContext = null; }
   }
   if (routePath === "api/v1/household/consent" && !verifiedContext) {
     return Response.json(
