@@ -136,3 +136,33 @@ test("production uses an atomic shared counter with a pseudonymous Redis key", a
   assert.doesNotMatch(command[3], /198\.51\.100\.23/);
   assert.equal(command[4], "60");
 });
+
+
+test("injects only server-verified household context", async () => {
+  setup();
+  let init;
+  globalThis.fetch = async (_url, options) => { init = options; return Response.json({ reply: "ok" }); };
+  const context = { identityId: "11111111-1111-4111-8111-111111111111", householdId: "22222222-2222-4222-8222-222222222222" };
+  const r = await proxyRequest(req("api/v1/agent", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ message: "hello" }) }), ["api","v1","agent"], { verifiedContext: context });
+  assert.equal(r.status, 200);
+  assert.equal(new Headers(init.headers).get("X-Saathi-Verified-Identity"), context.identityId);
+  assert.equal(new Headers(init.headers).get("X-Saathi-Verified-Household"), context.householdId);
+});
+
+test("consent endpoint requires verified phone context", async () => {
+  setup();
+  globalThis.fetch = async () => { throw Error("must not fetch"); };
+  const r = await proxyRequest(req("api/v1/household/consent"), ["api","v1","household","consent"]);
+  assert.equal(r.status, 401);
+});
+
+test("consent endpoint allows only purpose-specific booleans", async () => {
+  setup();
+  let init;
+  globalThis.fetch = async (_url, options) => { init = options; return Response.json({ purpose: "memory", granted: true }); };
+  const context = { identityId: "11111111-1111-4111-8111-111111111111", householdId: "22222222-2222-4222-8222-222222222222" };
+  const r = await proxyRequest(req("api/v1/household/consent", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ purpose: "memory", granted: true }) }), ["api","v1","household","consent"], { verifiedContext: context });
+  assert.equal(r.status, 200);
+  assert.deepEqual(JSON.parse(Buffer.from(init.body).toString("utf8")), { purpose: "memory", granted: true });
+  assert.equal(new Headers(init.headers).get("X-Saathi-Verified-Household"), context.householdId);
+});
