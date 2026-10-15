@@ -82,7 +82,7 @@ jobs:
             echo "No lockfile changes to commit."
           else
             git commit -m "chore(frontend): add generated npm lockfile"
-            git fetch origin "${BRANCH_NAME}"
+            git fetch origin "${BRANCH_NAME}:refs/remotes/origin/${BRANCH_NAME}"
             git rebase "origin/${BRANCH_NAME}"
             git push origin "HEAD:${BRANCH_NAME}"
           fi
