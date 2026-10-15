@@ -35,7 +35,7 @@ Last verified: 2026-10-15 UTC
 - PR #58 remains draft: reconcile migration histories in every relevant environment before merge or live DDL.
 - No real Open-Meteo, OGD/AGMARKNET, Sarvam STT/TTS, document AI or Exotel round-trip test is claimed.
 - Exotel callback authentication remains unverified: the current webhook requires an HMAC over the raw body, and official callback docs do not establish that Exotel supplies the custom HMAC header. Keep `TELEPHONY_CALLBACK_SIGNATURE_VERIFIED=false` until verified with the actual provider or trusted signer.
-- A reviewed frontend lockfile and `npm ci`, mobile/browser accessibility checks, Lighthouse/Core Web Vitals, SEO, monitoring, rollback evidence and deployed SHA remain outstanding.
+- The frontend lockfile is now committed in PR #66; `npm ci` validation is pending on its exact head. Mobile/browser accessibility checks, Lighthouse/Core Web Vitals, SEO, monitoring, rollback evidence and deployed SHA remain outstanding.
 - Vercel deployment/configuration remains deferred until 2026-10-24.
 
 ## Next actions
