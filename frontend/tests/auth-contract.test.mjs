@@ -12,6 +12,7 @@ const consentRoute = read("../app/api/auth/verify/route.ts");
 const pinRoute = read("../app/api/auth/household-pin/route.ts");
 const signoutRoute = read("../app/api/auth/signout/route.ts");
 const membershipMigration = read("../../docs/proposed-migrations/20261015080000_saathi_household_memberships.sql.proposed");
+const backendProxyRoute = read("../app/backend/[...path]/route.ts");
 
 test("Supabase SSR auth uses cookie sessions and publishable key only", () => {
   assert.match(server, /createServerClient/);
@@ -82,4 +83,12 @@ test("phone-number uniqueness races never attach a new Auth user to an existing 
   assert.match(identity, /isolatedHouseholdResponse/);
   assert.match(identity, /phone_number: null, memory_consent: false, outbound_call_consent: false/);
   assert.doesNotMatch(identity, /if \(!householdId && !phoneAlreadyAssigned\) householdId = await findHouseholdByPhone/);
+});
+
+
+test("anonymous conversation remains available while household data requires verified identity", () => {
+  assert.match(backendProxyRoute, /householdRoutes\.has\(routePath\)/);
+  assert.match(backendProxyRoute, /routePath === "api\/v1\/agent" \|\| routePath === "api\/v1\/voice\/turn"/);
+  assert.match(backendProxyRoute, /try \{ verifiedContext = await resolveVerifiedHouseholdContext\(\); \} catch \{ verifiedContext = null; \}/);
+  assert.match(backendProxyRoute, /if \(routePath === "api\/v1\/household\/consent" && !verifiedContext\)/);
 });
