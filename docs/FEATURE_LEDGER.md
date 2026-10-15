@@ -11,6 +11,7 @@ Last verified: 2026-10-16 UTC
 - Phone OTP, household PIN, purpose-specific consent, household tasks and explicit memory: [PR #68](https://github.com/kaustubhdua/Saathi/pull/68), draft. Atomic enrollment now calls the proposed `saathi_enroll_household` RPC, uses a fixed `pg_catalog` search path, serializes concurrent enrollment by Auth user ID, and limits membership writes to the function owner. Contract tests assert the RPC boundary and grants. Check PR #68 for the latest exact-head CI; live Auth/SMS, migration-history and provider gates remain.
 - Migration quarantine/index proposal: [PR #58](https://github.com/kaustubhdua/Saathi/pull/58), draft; do not merge until all environments' migration histories are reconciled.
 - [Release acceptance matrix](RELEASE_ACCEPTANCE_MATRIX.md)
+- [Run 21 release audit — 2026-10-16](RELEASE_AUDIT_RUN21_2026-10-16.md)
 - [Provider verification plan](PROVIDER_VERIFICATION.md)
 - Deployment policy: no Vercel production deployment before 2026-10-24.
 
