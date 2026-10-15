@@ -116,3 +116,15 @@ test("atomic enrollment validates inputs, keeps consent off and never adopts by 
   assert.match(membershipMigration, /IF existing\.pin_hash <> p_pin_hash THEN/);
   assert.doesNotMatch(membershipMigration, /SELECT h\.id INTO household_uuid FROM public\.saathi_households AS h WHERE h\.phone_number = p_verified_phone/);
 });
+
+test("auth mutations require JSON and use a bounded streaming parser", () => {
+  const requestReader = read("../lib/auth-request.mjs");
+  for (const route of [read("../app/api/auth/otp/route.ts"), read("../app/api/auth/verify/route.ts"), pinRoute]) {
+    assert.match(route, /application_json_required/);
+    assert.match(route, /readBoundedJson\(request\)/);
+    assert.doesNotMatch(route, /await request\.text\(\)/);
+  }
+  assert.match(requestReader, /request_body_too_large/);
+  assert.match(requestReader, /request_body_timeout/);
+  assert.match(requestReader, /new TextDecoder\("utf-8", \{ fatal: true \}\)/);
+});
