@@ -39,6 +39,7 @@ class Settings(BaseSettings):
     exotel_virtual_number: str | None = None
     exotel_stream_url: str | None = None
     telephony_callback_url: str | None = None
+    telephony_callback_signature_verified: bool = False
     telephony_webhook_secret: str | None = None
     call_api_token: str | None = None
     api_auth_token: str | None = None
