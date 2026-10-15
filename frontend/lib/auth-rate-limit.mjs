@@ -56,7 +56,14 @@ export async function isAuthRateLimited(request, phone, action) {
     if (process.env.NODE_ENV === "production") throw new Error("trusted_client_ip_not_configured");
   }
   const rawIp = ipHeader ? request.headers.get(ipHeader)?.trim() : "";
-  const ip = rawIp && !rawIp.includes(",") && isIP(rawIp) ? rawIp : "unknown";
+  const validIp = rawIp && !rawIp.includes(",") && isIP(rawIp) ? rawIp : null;
+  // In production, never collapse missing/ambiguous client IPs into a shared
+  // "unknown" Redis bucket. Reject before contacting Redis so the operator can
+  // fix the trusted-header contract without weakening per-client protection.
+  if (process.env.NODE_ENV === "production" && !validIp) {
+    throw new Error("trusted_client_ip_invalid");
+  }
+  const ip = validIp || "unknown";
   const phoneLimit = action === "otp" ? 3 : action === "pin" ? 5 : 10;
   const ipLimit = action === "otp" ? 20 : 60;
 
