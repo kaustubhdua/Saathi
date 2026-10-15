@@ -59,7 +59,7 @@ def _catalogue_scheme_response(scheme) -> tuple[str, ToolResult]:
         f"{scheme.name}: {scheme.summary} "
         f"पात्रता: {eligibility} "
         f"संभावित दस्तावेज़: {documents}. "
-        f"कैटलॉग समीक्षा तिथि {scheme.source_checked_on} है ({freshness.status}); यह लाइव सरकारी जाँच नहीं है। 
+        f"कैटलॉग समीक्षा तिथि {scheme.source_checked_on} है ({freshness.status}); यह लाइव सरकारी जाँच नहीं है। "
         f"अंतिम पात्रता, राज्य/सीजन की शर्तें और समय-सीमा आधिकारिक पोर्टल पर जाँचें: "
         f"{scheme.application_url}"
     )
