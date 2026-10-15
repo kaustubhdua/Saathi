@@ -42,6 +42,11 @@ class ConversationResponse(BaseModel):
     latency_ms: float | None = Field(default=None, ge=0.0)
 
 
+class ConsentUpdateRequest(BaseModel):
+    purpose: Literal["memory", "outbound_calls"]
+    granted: bool
+
+
 class AgentRequest(ConversationRequest):
     pass
 
