@@ -4,6 +4,7 @@ import {
   findHouseholdMembership,
   getVerifiedPhoneUser,
   hashHouseholdPin,
+  isStrongHouseholdPin,
   setHouseholdContextCookie,
   verifyHouseholdPin,
 } from "../../../../lib/household-identity";
@@ -37,8 +38,8 @@ export async function POST(request: Request) {
   } catch {
     return Response.json({ detail: "invalid_json" }, { status: 400 });
   }
-  if (!["setup", "verify"].includes(String(body.mode)) || typeof body.pin !== "string" || !/^\d{8}$/.test(body.pin)) {
-    return Response.json({ detail: "eight_digit_household_pin_required" }, { status: 422 });
+  if (!["setup", "verify"].includes(String(body.mode)) || typeof body.pin !== "string" || !isStrongHouseholdPin(body.pin)) {
+    return Response.json({ detail: "strong_eight_digit_household_pin_required" }, { status: 422 });
   }
 
   let user;
