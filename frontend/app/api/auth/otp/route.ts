@@ -1,3 +1,4 @@
+import { isAuthRateLimited } from "../../../../lib/auth-rate-limit.mjs";
 import { createSupabaseServerClient } from "../../../../lib/supabase/server";
 
 function validOrigin(request: Request) {
@@ -21,6 +22,8 @@ export async function POST(request: Request) {
   if (typeof body.phone !== "string" || !/^\+[1-9]\d{7,14}$/.test(body.phone)) {
     return Response.json({ detail: "valid_e164_phone_required" }, { status: 422 });
   }
+
+  if (isAuthRateLimited(request, body.phone, "otp")) return Response.json({ detail: "auth_rate_limited" }, { status: 429 });
 
   const supabase = await createSupabaseServerClient();
   if (!supabase) return Response.json({ detail: "supabase_auth_not_configured" }, { status: 503 });
