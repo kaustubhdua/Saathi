@@ -1,6 +1,6 @@
 # Saathi Release Sprint — Run 20
 
-Date: 2026-10-15 (IST)  
+Date: 2026-10-15 (IST) — superseded by the Run 21 audit dated 2026-10-16  
 Scope: evidence-only refresh; no merge, database mutation, provider activation, or deployment.
 
 ## Live GitHub state checked at run start
@@ -21,7 +21,7 @@ Evidence:
 
 The current proposed enrollment implementation performs household creation and membership insertion as separate REST operations. Concurrent first-time setup for the same Auth identity can leave an unlinked household row if membership creation loses a uniqueness race. This is a data-integrity concern; it does not by itself establish cross-household access.
 
-A local candidate patch exists in the Run 19 handoff. It moves enrollment into a proposed server-only PostgreSQL RPC, serializes enrollment by Auth user ID, revokes direct membership-table writes from `service_role`, grants RPC execution only to `service_role`, and adds contract assertions. It is **not published or CI-verified**. Before adopting it, review SECURITY DEFINER ownership/search_path/grants, conflict semantics, row-return behavior, and run deterministic concurrent-enrollment tests against an authorized isolated database. Do not activate or apply the proposed migration.
+The atomic-enrollment candidate was published to PR #68 after this report: `66dc2a3`, `8a8df82`, and `35f3557`. A follow-up security hardening commit sets the RPC search path to `pg_catalog` only and adds explicit contract assertions for the lock and grants. The code and proposed SQL are published, but no live database migration was applied. See the 16 October release audit for current evidence and remaining gates.
 
 ## Database safety gates (unchanged)
 
