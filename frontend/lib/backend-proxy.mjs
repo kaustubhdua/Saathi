@@ -6,8 +6,10 @@ const POLICIES = {
   "api/v1/agent": { method: "POST", kind: "json", maxBytes: 64 * 1024, timeoutMs: 12_000 },
   "api/v1/voice/turn": { method: "POST", kind: "multipart", maxBytes: 10 * 1024 * 1024, timeoutMs: 45_000 },
   "api/v1/household/consent": { method: "POST", kind: "consent", maxBytes: 4096, timeoutMs: 8_000 },
+  "api/v1/household/tasks": { method: "POST", kind: "task", maxBytes: 8192, timeoutMs: 8_000 },
+  "api/v1/household/tasks/status": { method: "POST", kind: "task_status", maxBytes: 4096, timeoutMs: 8_000 },
 };
-const READ_ROUTES = new Set(["health/ready", "health/live", "api/v1/household/consent"]);
+const READ_ROUTES = new Set(["health/ready", "health/live", "api/v1/household/consent", "api/v1/household/tasks"]);
 const buckets = new Map();
 const WINDOW_MS = 60_000;
 const REQUEST_LIMIT = 30;
@@ -160,7 +162,7 @@ export async function proxyRequest(request, segments = [], options = {}) {
     if (policy.kind === "multipart" && (!contentType.toLowerCase().startsWith("multipart/form-data;") || !contentType.toLowerCase().includes("boundary="))) return errorResponse(415, "multipart_form_data_required");
     try { body = await readBoundedBody(request, policy.maxBytes, policy.timeoutMs); }
     catch (error) { return errorResponse(error?.status || 400, error?.message || "invalid_request_body"); }
-    if (policy.kind === "json" || policy.kind === "consent") {
+    if (["json", "consent", "task", "task_status"].includes(policy.kind)) {
       let parsed;
       try { parsed = JSON.parse(body.toString("utf8")); } catch { return errorResponse(400, "invalid_json"); }
       if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return errorResponse(400, "json_object_required");
@@ -169,9 +171,21 @@ export async function proxyRequest(request, segments = [], options = {}) {
         if (typeof parsed.message !== "string" || !parsed.message.trim() || parsed.message.length > 8000) return errorResponse(422, "valid_message_required");
         if (parsed.language !== undefined && (typeof parsed.language !== "string" || parsed.language.length > 20)) return errorResponse(422, "invalid_language");
         body = Buffer.from(JSON.stringify({ message: parsed.message, ...(parsed.language ? { language: parsed.language } : {}) }));
-      } else {
+      } else if (policy.kind === "consent") {
         if (!["memory", "outbound_calls"].includes(parsed.purpose) || typeof parsed.granted !== "boolean") return errorResponse(422, "valid_consent_purpose_and_boolean_required");
         body = Buffer.from(JSON.stringify({ purpose: parsed.purpose, granted: parsed.granted }));
+      } else if (policy.kind === "task") {
+        if (typeof parsed.title !== "string" || !parsed.title.trim() || parsed.title.trim().length > 300) return errorResponse(422, "valid_task_title_required");
+        if (parsed.missing_items !== undefined && (!Array.isArray(parsed.missing_items) || parsed.missing_items.length > 20 || parsed.missing_items.some((item) => typeof item !== "string" || item.trim().length > 200))) return errorResponse(422, "invalid_task_missing_items");
+        if (parsed.idempotency_key !== undefined && (typeof parsed.idempotency_key !== "string" || parsed.idempotency_key.length < 1 || parsed.idempotency_key.length > 160)) return errorResponse(422, "invalid_task_idempotency_key");
+        body = Buffer.from(JSON.stringify({
+          title: parsed.title.trim(),
+          missing_items: (parsed.missing_items || []).map((item) => item.trim()).filter(Boolean),
+          ...(parsed.idempotency_key ? { idempotency_key: parsed.idempotency_key } : {}),
+        }));
+      } else {
+        if (typeof parsed.task_id !== "string" || !/^[0-9a-f-]{36}$/i.test(parsed.task_id) || !["completed", "cancelled"].includes(parsed.status)) return errorResponse(422, "valid_task_status_update_required");
+        body = Buffer.from(JSON.stringify({ task_id: parsed.task_id, status: parsed.status }));
       }
       headers.set("Content-Type", "application/json");
     } else {
