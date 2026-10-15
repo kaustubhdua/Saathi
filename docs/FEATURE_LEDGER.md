@@ -8,7 +8,7 @@ Last verified: 2026-10-15 UTC
 - Telephony callback lifecycle and live-call safety gate: [PR #61](https://github.com/kaustubhdua/Saathi/pull/61), merged.
 - Dashboard keyboard accessibility and truthful status labels: [PR #63](https://github.com/kaustubhdua/Saathi/pull/63), merged.
 - Shared production rate limiting: [PR #64](https://github.com/kaustubhdua/Saathi/pull/64), merged; production requires configured Upstash Redis and a trusted single-IP header.
-- Phone OTP, household PIN, purpose-specific consent, household tasks and explicit memory: [PR #68](https://github.com/kaustubhdua/Saathi/pull/68), draft. Exact-head CI run #899 passed all five jobs on `a22a81274428e1339fe31654f547a017fff6fcf6`, including the active memory-consent lock/trigger regression test and task idempotency-query encoding regression. Live Auth/SMS, migration-history and provider gates remain.
+- Phone OTP, household PIN, purpose-specific consent, household tasks and explicit memory: [PR #68](https://github.com/kaustubhdua/Saathi/pull/68), draft. Exact-head CI run #902 passed all five jobs on `73c295805fb48bd330757bdf4d78d185bbd987ce`, including the active memory-consent lock/trigger regression test and task idempotency-query encoding regression. Live Auth/SMS, migration-history and provider gates remain.
 - Migration quarantine/index proposal: [PR #58](https://github.com/kaustubhdua/Saathi/pull/58), draft; do not merge until all environments' migration histories are reconciled.
 - [Release acceptance matrix](RELEASE_ACCEPTANCE_MATRIX.md)
 - [Provider verification plan](PROVIDER_VERIFICATION.md)
@@ -37,11 +37,13 @@ Last verified: 2026-10-15 UTC
 
 ## Candidate integration — household tasks and explicit memory
 
-- Task and memory API/UI changes from PRs #71/#72 have been ported onto the current authentication branch. The task/memory patches are included in the consolidated auth candidate; exact-head CI run #899 passed all five jobs on `a22a81274428e1339fe31654f547a017fff6fcf6`. Task idempotency conflict queries are household-filtered, tenant-checked, and URL-encoded. This remains a draft branch, not main or production.
+- Task and memory API/UI changes from PRs #71/#72 have been ported onto the current authentication branch. The task/memory patches are included in the consolidated auth candidate; exact-head CI run #902 passed all five jobs on `73c295805fb48bd330757bdf4d78d185bbd987ce`. Task idempotency conflict queries are household-filtered, tenant-checked, and URL-encoded. This remains a draft branch, not main or production.
 - Task list/create/status routes use verified household context; idempotency-conflict recovery is additionally household-filtered and rejects mismatched rows. Automatic reminder dispatch and callback delivery remain disabled.
 - Memory list/write/delete routes require current persisted memory consent and explicit user input; automatic conversation extraction is not connected. Database trigger behavior and revocation races still require isolated live-database acceptance.
 
 - Exotel callback contract remains unverified: the current telephony handler requires `X-Saathi-Signature` HMAC. Exotel's documented ExoML real-time events instead send `Authorization: Basic` when configured and explicitly do not support custom headers; that does not establish the auth contract for the existing legacy `Calls/connect` `StatusCallback` path. Keep telephony disabled until the exact product/callback mode is confirmed and the matching auth/payload handler is tested. Official reference: https://docs.exotel.com/voice-apis/implementing-your-https-event-endpoint-for-real-time-call-events?open=browser.
+
+Dependency note: `npm ci` reports five high-severity vulnerabilities in the full frontend dependency tree, while the CI audit restricted to production dependencies passes. The affected packages have not yet been identified/triaged; do not describe this as a clean full-tree dependency audit.
 
 ## Other partial implementation
 

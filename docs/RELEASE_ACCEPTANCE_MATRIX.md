@@ -8,7 +8,7 @@ This is an evidence ledger, not a declaration that release gates have passed. Au
 
 - Main baseline for this branch: `edd5164fc406b87a5ab811d9746ad21e7e4c1d1f` after PR #66.
 - PR #57 (API proxy/source freshness), #59 (identity fail-closed guard), #61 (telephony callback state handling), #63 (dashboard accessibility) and #64 (shared production rate limiting) are merged.
-- PR #68 implements phone OTP, household PIN, consent, household task APIs and explicit user-entered memory. Exact-head CI run #900 passed all five jobs on `cfff1a3a13c303a62093560669711a4a20cf0a8d`, including active consent-locking and task idempotency-query encoding regression tests.
+- PR #68 implements phone OTP, household PIN, consent, household task APIs and explicit user-entered memory. Exact-head CI run #902 passed all five jobs on `73c295805fb48bd330757bdf4d78d185bbd987ce`, including active consent-locking and task idempotency-query encoding regression tests.
 - Trusted-IP validation, bounded development limiter storage and phone-enrollment collision isolation have regression coverage. Live Auth/SMS and migration activation remain outstanding.
 - Read-only live verification found six recorded Saathi migrations, including `saathi_memory_consent_locking`, eight Saathi tables with RLS enabled, and no `saathi_household_memberships` table. Authenticated household actions therefore remain fail-closed until the membership migration is approved and applied safely.
 - A separate Supabase project named `Saathi` in `ap-northeast-2` is inactive and its migration-history query timed out. It was not restored; do not restore it without explicit operator approval. Migration reconciliation remains incomplete until this environment is safely inspected.
@@ -33,7 +33,7 @@ This is an evidence ledger, not a declaration that release gates have passed. Au
 | 11 | Reminder/volunteer workflows persist, dispatch, retry, assign and resolve correctly | NOT COMPLETE | Durable dispatcher, atomic claims, retry/quiet-hour tests and operator queue evidence |
 | 12 | Mobile, keyboard, screen-reader, reduced-motion and WCAG 2.2 AA-oriented checks pass | PARTIAL | PR #63 adds keyboard tab navigation and live regions; complete real-device/browser and accessibility audit |
 | 13 | Core Web Vitals, SEO, responsive behavior and error states are measured and pass | PARTIAL — PR #76 DRAFT | Branded 404/error boundaries and dashboard noindex metadata are in PR #76; run #895 passed the first candidate, noindex follow-up awaits exact-head CI. Lighthouse/field data and hosted browser smoke remain outstanding. |
-| 14 | Reproducible frontend build uses a reviewed lockfile and npm ci | CODE + CI PASS | Lockfile committed on main; run #818 passed all five CI jobs on `edd5164fc406b87a5ab811d9746ad21e7e4c1d1f` |
+| 14 | Reproducible frontend build uses a reviewed lockfile and npm ci | CODE + CI PASS | Lockfile committed on main; run #818 passed all five CI jobs on `edd5164fc406b87a5ab811d9746ad21e7e4c1d1f`. `npm ci` still reports five high-severity advisories across the full tree; production-only audit passes, but the full tree has not been triaged |
 | 15 | Exact release commit has complete CI, deployed SHA, smoke tests, monitoring and rollback evidence | NOT COMPLETE | All manual gates, deployment evidence, runbook and rollback rehearsal |
 
 ## Evidence links
