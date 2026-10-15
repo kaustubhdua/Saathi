@@ -77,7 +77,7 @@ export default function Dashboard() {
   const [apiReady, setApiReady] = useState(false);
   const [capabilities, setCapabilities] = useState<ReadyCapabilities>({});
   const [demoMode, setDemoMode] = useState(true);
-  const [authStatus, setAuthStatus] = useState<{ loading: boolean; configured: boolean; phoneSuffix: string | null }>({ loading: true, configured: false, phoneSuffix: null });
+  const [authStatus, setAuthStatus] = useState<{ loading: boolean; configured: boolean; phoneSuffix: string | null; householdReady: boolean }>({ loading: true, configured: false, phoneSuffix: null, householdReady: false });
   const [consentStatus, setConsentStatus] = useState<ConsentSnapshot | null>(null);
   const [consentBusy, setConsentBusy] = useState(false);
   const [consentMessage, setConsentMessage] = useState<string | null>(null);
@@ -106,14 +106,14 @@ export default function Dashboard() {
     fetch("/api/auth/session", { signal: controller.signal, cache: "no-store" })
       .then(async (response) => {
         const body = await response.json();
-        setAuthStatus({ loading: false, configured: body.authConfigured === true, phoneSuffix: body.phoneVerified === true ? body.phoneSuffix : null });
+        setAuthStatus({ loading: false, configured: body.authConfigured === true, phoneSuffix: body.phoneVerified === true ? body.phoneSuffix : null, householdReady: body.householdContextVerified === true });
       })
-      .catch(() => setAuthStatus({ loading: false, configured: false, phoneSuffix: null }));
+      .catch(() => setAuthStatus({ loading: false, configured: false, phoneSuffix: null, householdReady: false }));
     return () => controller.abort();
   }, []);
 
   useEffect(() => {
-    if (!authStatus.phoneSuffix) {
+    if (!authStatus.householdReady) {
       setConsentStatus(null);
       return;
     }
@@ -129,7 +129,7 @@ export default function Dashboard() {
         if (!controller.signal.aborted) setConsentError(cause instanceof Error ? cause.message : "Consent status is unavailable.");
       });
     return () => controller.abort();
-  }, [authStatus.phoneSuffix]);
+  }, [authStatus.householdReady]);
 
   const updateConsent = async (purpose: "memory" | "outbound_calls", granted: boolean) => {
     setConsentBusy(true);
@@ -159,7 +159,7 @@ export default function Dashboard() {
 
   const signOut = async () => {
     await fetch("/api/auth/signout", { method: "POST" }).catch(() => undefined);
-    setAuthStatus((current) => ({ ...current, loading: false, phoneSuffix: null }));
+    setAuthStatus((current) => ({ ...current, loading: false, phoneSuffix: null, householdReady: false }));
     setConsentStatus(null);
     setConsentMessage(null);
     setConsentError(null);
@@ -342,7 +342,7 @@ export default function Dashboard() {
             <span role="status" aria-live="polite"><Zap size={13} /> {apiOnline ? (apiReady ? "API ready" : "API online") : "API offline"}</span>
             <span><ShieldCheck size={13} /> {consentStatus?.memory.granted ? "Memory consent granted" : "Memory consent off"}</span>
             <span><Languages size={13} /> Hindi-first</span>
-            {authStatus.phoneSuffix ? <button type="button" className="auth-status-link" onClick={signOut}>Verified phone · ••••{authStatus.phoneSuffix} · Sign out</button> : <Link href="/login" className="auth-status-link">{authStatus.loading ? "Checking sign-in…" : authStatus.configured ? "Sign in with phone" : "Phone sign-in not configured"}</Link>}
+            {authStatus.phoneSuffix ? (authStatus.householdReady ? <button type="button" className="auth-status-link" onClick={signOut}>Household unlocked · ••••{authStatus.phoneSuffix} · Sign out</button> : <><Link href="/login" className="auth-status-link">Verify household PIN · ••••{authStatus.phoneSuffix}</Link><button type="button" className="auth-status-link" onClick={signOut}>Sign out</button></>) : <Link href="/login" className="auth-status-link">{authStatus.loading ? "Checking sign-in…" : authStatus.configured ? "Sign in with phone" : "Phone sign-in not configured"}</Link>}
           </div>
         </header>
 
@@ -472,6 +472,8 @@ export default function Dashboard() {
           <p className="consent-intro">Consent is separate by purpose. Sign in with a verified phone number to view and change persisted permissions. No permission is enabled by default.</p>
           {!authStatus.phoneSuffix ? (
             <div className="consent-note"><ShieldCheck size={14} /> {authStatus.configured ? "Sign in with a verified phone to manage household consent." : "Phone sign-in is not configured in this deployment. Household consent and memory remain unavailable."} {authStatus.configured && <Link href="/login">Sign in with phone</Link>}</div>
+          ) : !authStatus.householdReady ? (
+            <div className="consent-note"><ShieldCheck size={14} /> Verify your separate household PIN before viewing or changing consent. <Link href="/login">Verify household PIN</Link></div>
           ) : (
             <div className="consent-actions">
               <div className="consent-choice">
