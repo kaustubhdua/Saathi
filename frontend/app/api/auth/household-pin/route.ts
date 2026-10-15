@@ -1,0 +1,75 @@
+import { isAuthRateLimited } from "../../../../lib/auth-rate-limit.mjs";
+import {
+  createHouseholdMembership,
+  findHouseholdMembership,
+  getVerifiedPhoneUser,
+  hashHouseholdPin,
+  setHouseholdContextCookie,
+  verifyHouseholdPin,
+} from "../../../../lib/household-identity";
+
+function validOrigin(request: Request) {
+  const origin = request.headers.get("origin");
+  if (!origin) return true;
+  try { return new URL(origin).origin === new URL(request.url).origin; } catch { return false; }
+}
+
+export async function GET() {
+  try {
+    const user = await getVerifiedPhoneUser();
+    if (!user) return Response.json({ detail: "verified_phone_identity_required" }, { status: 401, headers: { "Cache-Control": "no-store" } });
+    const membership = await findHouseholdMembership(user.id);
+    return Response.json({ mode: membership ? "verify" : "setup" }, { headers: { "Cache-Control": "no-store" } });
+  } catch {
+    return Response.json({ detail: "household_identity_not_configured" }, { status: 503, headers: { "Cache-Control": "no-store" } });
+  }
+}
+
+export async function POST(request: Request) {
+  if (!validOrigin(request)) return Response.json({ detail: "origin_not_allowed" }, { status: 403 });
+  const length = Number(request.headers.get("content-length") || 0);
+  if (length > 4096) return Response.json({ detail: "request_body_too_large" }, { status: 413 });
+  let body: { mode?: unknown; pin?: unknown };
+  try {
+    const raw = await request.text();
+    if (raw.length > 4096) return Response.json({ detail: "request_body_too_large" }, { status: 413 });
+    body = JSON.parse(raw);
+  } catch {
+    return Response.json({ detail: "invalid_json" }, { status: 400 });
+  }
+  if (!["setup", "verify"].includes(String(body.mode)) || typeof body.pin !== "string" || !/^\d{8}$/.test(body.pin)) {
+    return Response.json({ detail: "eight_digit_household_pin_required" }, { status: 422 });
+  }
+
+  let user;
+  try { user = await getVerifiedPhoneUser(); }
+  catch { return Response.json({ detail: "verified_phone_identity_required" }, { status: 401 }); }
+  if (!user) return Response.json({ detail: "verified_phone_identity_required" }, { status: 401 });
+
+  let limited: boolean;
+  try { limited = await isAuthRateLimited(request, user.phone, "pin"); }
+  catch { return Response.json({ detail: "auth_rate_limit_unavailable" }, { status: 503, headers: { "Cache-Control": "no-store" } }); }
+  if (limited) return Response.json({ detail: "household_pin_rate_limited" }, { status: 429, headers: { "Cache-Control": "no-store" } });
+
+  try {
+    const existing = await findHouseholdMembership(user.id);
+    let membership;
+    if (body.mode === "setup") {
+      if (existing) return Response.json({ detail: "household_pin_already_set" }, { status: 409 });
+      const pinHash = hashHouseholdPin(user.id, body.pin);
+      membership = await createHouseholdMembership(user, pinHash);
+    } else {
+      if (!existing) return Response.json({ detail: "household_pin_setup_required" }, { status: 409 });
+      if (!verifyHouseholdPin(user.id, body.pin, existing.pin_hash)) {
+        return Response.json({ detail: "household_pin_verification_failed" }, { status: 401, headers: { "Cache-Control": "no-store" } });
+      }
+      membership = existing;
+    }
+    await setHouseholdContextCookie(user.id, membership.household_id);
+    return Response.json({ status: "household_verified" }, { headers: { "Cache-Control": "no-store" } });
+  } catch (cause) {
+    const message = cause instanceof Error ? cause.message : "";
+    if (message === "household_pin_already_set") return Response.json({ detail: message }, { status: 409 });
+    return Response.json({ detail: "household_identity_not_configured" }, { status: 503, headers: { "Cache-Control": "no-store" } });
+  }
+}
