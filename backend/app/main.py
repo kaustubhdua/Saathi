@@ -10,7 +10,7 @@ from fastapi import FastAPI, File, Form, Header, HTTPException, Request, UploadF
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import get_settings
-from .schemas import AgentRequest, CallRequest, ConsentUpdateRequest, ConversationRequest, ConversationResponse, HouseholdTaskCreateRequest, HouseholdTaskStatusRequest, LocationContext, VoiceTurnResponse
+from .schemas import AgentRequest, CallRequest, ConsentUpdateRequest, ConversationRequest, ConversationResponse, HouseholdMemoryDeleteRequest, HouseholdMemoryWriteRequest, HouseholdTaskCreateRequest, HouseholdTaskStatusRequest, LocationContext, VoiceTurnResponse
 from .orchestrator import AgentContext, Orchestrator
 from .rate_limit import InMemoryRateLimiter
 from .telephony import HmacWebhookVerifier
@@ -22,7 +22,7 @@ from .voice_bridge import run_exotel_realtime_session, run_exotel_session
 from .webhook_events import InMemoryWebhookEventStore, derive_event_id, record_supabase_webhook_event
 from .supabase_store import record_conversation_metadata
 from .domain import Consent, ConsentType, Task, TaskStatus
-from .supabase_repositories import SupabaseCallRepository, SupabaseConsentRepository, SupabaseRepositoryError, SupabaseTaskRepository
+from .supabase_repositories import SupabaseCallRepository, SupabaseConsentRepository, SupabaseMemoryRepository, SupabaseRepositoryError, SupabaseTaskRepository
 from .scheme_catalog import get_scheme, list_schemes
 
 
@@ -448,6 +448,84 @@ async def update_household_consent(
     except (SupabaseRepositoryError, ValueError) as exc:
         raise HTTPException(status_code=503, detail="consent_store_unavailable") from exc
     return {"purpose": payload.purpose, "granted": saved.granted, "recorded_at": saved.recorded_at.isoformat()}
+
+
+@app.get("/api/v1/household/memories")
+async def list_household_memories(
+    x_saathi_api_key: str | None = Header(default=None),
+    x_saathi_verified_household: str | None = Header(default=None),
+    x_saathi_verified_identity: str | None = Header(default=None),
+) -> dict[str, object]:
+    _authorize_api_request(x_saathi_api_key)
+    household_id = _authorize_household_context(None, x_saathi_verified_household, x_saathi_verified_identity)
+    if not household_id:
+        raise HTTPException(status_code=401, detail="verified_phone_identity_required")
+    try:
+        consent = await SupabaseConsentRepository().get(household_id=household_id, consent_type=ConsentType.MEMORY)
+        if consent is None or not consent.granted:
+            return {"consent_granted": False, "memories": []}
+        memories = await SupabaseMemoryRepository().list_for_household(household_id=household_id)
+    except (SupabaseRepositoryError, ValueError) as exc:
+        raise HTTPException(status_code=503, detail="household_memory_unavailable") from exc
+    return {"consent_granted": True, "memories": memories}
+
+
+@app.post("/api/v1/household/memories")
+async def save_household_memory(
+    payload: HouseholdMemoryWriteRequest,
+    x_saathi_api_key: str | None = Header(default=None),
+    x_saathi_verified_household: str | None = Header(default=None),
+    x_saathi_verified_identity: str | None = Header(default=None),
+) -> dict[str, object]:
+    _authorize_api_request(x_saathi_api_key)
+    household_id = _authorize_household_context(None, x_saathi_verified_household, x_saathi_verified_identity)
+    if not household_id:
+        raise HTTPException(status_code=401, detail="verified_phone_identity_required")
+    memory_type, key_name, value_text = payload.memory_type.strip(), payload.key_name.strip(), payload.value_text.strip()
+    if not memory_type or not key_name or not value_text:
+        raise HTTPException(status_code=422, detail="memory_fields_must_not_be_blank")
+    try:
+        consent = await SupabaseConsentRepository().get(household_id=household_id, consent_type=ConsentType.MEMORY)
+    except (SupabaseRepositoryError, ValueError) as exc:
+        raise HTTPException(status_code=503, detail="household_memory_consent_unavailable") from exc
+    if consent is None or not consent.granted:
+        raise HTTPException(status_code=403, detail="memory_consent_required")
+    try:
+        memory = await SupabaseMemoryRepository().save(
+            household_id=household_id,
+            memory_type=memory_type,
+            key_name=key_name,
+            value_text=value_text,
+        )
+    except (SupabaseRepositoryError, ValueError) as exc:
+        # The database trigger independently enforces consent while serializing
+        # writes against revocation, so a race cannot bypass the permission.
+        if "household_memory_consent_required" in str(exc):
+            raise HTTPException(status_code=403, detail="memory_consent_required") from exc
+        raise HTTPException(status_code=503, detail="household_memory_save_failed") from exc
+    return memory
+
+
+@app.post("/api/v1/household/memories/delete")
+async def delete_household_memory(
+    payload: HouseholdMemoryDeleteRequest,
+    x_saathi_api_key: str | None = Header(default=None),
+    x_saathi_verified_household: str | None = Header(default=None),
+    x_saathi_verified_identity: str | None = Header(default=None),
+) -> dict[str, object]:
+    _authorize_api_request(x_saathi_api_key)
+    household_id = _authorize_household_context(None, x_saathi_verified_household, x_saathi_verified_identity)
+    if not household_id:
+        raise HTTPException(status_code=401, detail="verified_phone_identity_required")
+    try:
+        deleted = await SupabaseMemoryRepository().delete(household_id=household_id, memory_id=payload.memory_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail="invalid_memory_id") from exc
+    except SupabaseRepositoryError as exc:
+        raise HTTPException(status_code=503, detail="household_memory_delete_failed") from exc
+    if not deleted:
+        raise HTTPException(status_code=404, detail="household_memory_not_found")
+    return {"memory_id": payload.memory_id, "deleted": True}
 
 
 @app.get("/api/v1/household/tasks")
