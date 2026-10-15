@@ -7,7 +7,8 @@ This is an evidence ledger, not a declaration that release gates have passed. Au
 ## Current baseline
 
 - Main after P0/P1 merge: `e8a13bdd0022f33707e6a9338d3cc7fcdf039615`.
-- PR #59 adds production fail-closed behavior for unverified household identifiers; CI run #772 is pending at the time this document was authored.
+- PR #59 adds production fail-closed behavior for unverified household identifiers and is merged.
+- PR #64 adds phone OTP, verified household mapping and consent workflows; CI and live Auth/SMS verification remain outstanding.
 - PR #58 remains draft because other environments' migration histories are not verified.
 - Production Vercel configuration/deployment remains deferred until 2026-10-24.
 - No live provider test, live database DDL, or production deployment is claimed here.
@@ -18,9 +19,9 @@ This is an evidence ledger, not a declaration that release gates have passed. Au
 |---|---|---|---|
 | 1 | Browser API requests use the same-origin allowlisted proxy; server token never enters browser bundles | PARTIAL | PR #57 merged and exact-head CI green; inspect production build/environment and run hosted request tests |
 | 2 | Production readiness fails when operator auth is absent | CODE + CI | Backend test and exact-main CI; verify real deployment configuration |
-| 3 | Identity-to-household ownership is verified; caller-supplied UUID cannot select another household | PARTIAL / FAIL-CLOSED | PR #59 denies unverified IDs; verified identity provider and ownership journey not implemented |
-| 4 | Consent grant/status/revocation are persisted and identity-bound | NOT COMPLETE | Implement user identity and consent endpoints; test revocation and denial |
-| 5 | Memory writes require current consent; revocation deletes memory | SCHEMA FOUNDATION ONLY | Test real repository path and concurrent revoke/write behavior against isolated test DB |
+| 3 | Identity-to-household ownership is verified; caller-supplied UUID cannot select another household | PARTIAL — PR #64 pending CI | Supabase phone OTP and confirmed-phone-to-household mapping are implemented in the PR branch; enable SMS/Auth and run live verification before treating it as complete |
+| 4 | Consent grant/status/revocation are persisted and identity-bound | PARTIAL — PR #64 pending CI | Consent UI and authenticated purpose-specific API are added; verify live persistence and revoke behavior in an isolated test household |
+| 5 | Memory writes require current consent; revocation deletes memory | SCHEMA + API FOUNDATION | Existing database trigger purges memory on revocation; prove the complete UI/API/repository/trigger path and concurrent revoke/write behavior in an isolated test DB |
 | 6 | Two households cannot read/update each other's tasks, memory or cases | NOT COMPLETE | Two-identity integration tests against non-production database |
 | 7 | Live weather and mandi results have correct source and observation/retrieval timestamps | NOT VERIFIED | Authorized provider tests; validate units, location matching, freshness and failure cases |
 | 8 | Browser voice completes real STT -> tool -> TTS with measured latency | NOT VERIFIED | Provider credentials, browser matrix, STT/TTS round-trip logs and p50/p95 latency |
