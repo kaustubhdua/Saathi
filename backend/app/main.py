@@ -141,7 +141,15 @@ def _configured_telephony_callback_url() -> str:
     raw = (settings.telephony_callback_url or "").strip()
     parsed = urlsplit(raw)
     host = (parsed.hostname or "").lower()
-    invalid = parsed.scheme != "https" or not host or parsed.username is not None or parsed.password is not None or bool(parsed.fragment)
+    invalid = (
+        parsed.scheme != "https"
+        or not host
+        or parsed.username is not None
+        or parsed.password is not None
+        or bool(parsed.fragment)
+        or bool(parsed.query)
+        or parsed.path.rstrip("/") != "/api/v1/webhooks/telephony"
+    )
     if host in {"localhost", "localhost.localdomain"} or host.endswith((".localhost", ".local")):
         invalid = True
     try:
