@@ -299,7 +299,7 @@ export default function Dashboard() {
 
             <div className="caller-context">
               <div className={`caller-avatar ${voiceState !== "idle" ? "pulse" : ""}`}><Mic2 size={23} /></div>
-              <div><strong>Unknown caller</strong><span>Hindi · Sonipat district</span></div>
+              <div><strong>Demo session</strong><span>Hindi · location not provided</span></div>
               <span className={`call-state ${voiceState !== "idle" ? "busy" : ""}`}>{voiceState.toUpperCase()}</span>
             </div>
 
