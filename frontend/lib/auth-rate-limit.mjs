@@ -74,11 +74,22 @@ export async function isAuthRateLimited(request, phone, action) {
   const ipAllowed = consume(`${action}:ip:${ip}`, ipLimit);
   if (buckets.size > 5000) {
     const now = Date.now();
-    for (const [key, value] of buckets) if (now - value.startedAt >= WINDOW_MS) buckets.delete(key);
+    for (const [key, value] of buckets) {
+      if (now - value.startedAt >= WINDOW_MS) buckets.delete(key);
+    }
+    while (buckets.size > 5000) {
+      const oldest = buckets.keys().next().value;
+      if (oldest === undefined) break;
+      buckets.delete(oldest);
+    }
   }
   return !phoneAllowed || !ipAllowed;
 }
 
 export function _resetAuthRateLimitForTests() {
   buckets.clear();
+}
+
+export function _authRateLimitBucketCountForTests() {
+  return buckets.size;
 }
