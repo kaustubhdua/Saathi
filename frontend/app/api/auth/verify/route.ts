@@ -23,7 +23,13 @@ export async function POST(request: Request) {
     return Response.json({ detail: "valid_phone_and_six_digit_code_required" }, { status: 422 });
   }
 
-  if (isAuthRateLimited(request, body.phone, "verify")) return Response.json({ detail: "auth_rate_limited" }, { status: 429 });
+  let rateLimited: boolean;
+  try {
+    rateLimited = await isAuthRateLimited(request, body.phone, "verify");
+  } catch {
+    return Response.json({ detail: "auth_rate_limit_unavailable" }, { status: 503, headers: { "Cache-Control": "no-store" } });
+  }
+  if (rateLimited) return Response.json({ detail: "auth_rate_limited" }, { status: 429, headers: { "Cache-Control": "no-store" } });
 
   const supabase = await createSupabaseServerClient();
   if (!supabase) return Response.json({ detail: "supabase_auth_not_configured" }, { status: 503 });
