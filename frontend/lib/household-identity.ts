@@ -98,7 +98,22 @@ export async function createHouseholdMembership(user: VerifiedPhoneUser, pinHash
   if (!householdResponse.ok) throw new Error("household_enrollment_failed");
   const householdRows = await householdResponse.json() as Array<{ id?: string }>;
   let householdId = typeof householdRows[0]?.id === "string" ? householdRows[0].id : null;
-  if (!householdId && !phoneAlreadyAssigned) householdId = await findHouseholdByPhone(supabaseUrl, headers, user.phone);
+  if (!householdId && !phoneAlreadyAssigned) {
+    // A concurrent enrollment may have won the unique phone_number insert.
+    // Never look up and adopt that household: it may belong to a recycled
+    // phone number or a different verified Auth identity. Create a separate
+    // unlinked household instead, preserving the auth_user_id boundary.
+    const isolatedHouseholdResponse = await fetch(`${supabaseUrl}/rest/v1/saathi_households`, {
+      method: "POST",
+      headers: { ...headers, Prefer: "return=representation" },
+      body: JSON.stringify({ phone_number: null, memory_consent: false, outbound_call_consent: false }),
+      cache: "no-store",
+      signal: AbortSignal.timeout(4000),
+    });
+    if (!isolatedHouseholdResponse.ok) throw new Error("household_enrollment_unavailable");
+    const isolatedRows = await isolatedHouseholdResponse.json() as Array<{ id?: string }>;
+    householdId = typeof isolatedRows[0]?.id === "string" ? isolatedRows[0].id : null;
+  }
   if (!householdId) throw new Error("household_enrollment_unavailable");
   const membershipUrl = `${supabaseUrl}/rest/v1/saathi_household_memberships?on_conflict=auth_user_id`;
   const membershipResponse = await fetch(membershipUrl, {
