@@ -37,7 +37,17 @@ Do not set real API keys in GitHub files, commit history, or client-side `NEXT_P
 
 The browser does not need a direct API URL; requests go through the same-origin `/backend/*` proxy. Provider credentials and the backend API token must remain server-side.
 
-## 3. Configure live providers one at a time
+## 3. Configure verified phone identity and household consent
+
+- Set `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` on Vercel.
+- Set `SUPABASE_URL` and `SUPABASE_SECRET_KEY` as **server-only** Vercel environment variables. The secret key is used only by the Next.js server to find/create the household associated with a verified phone; never use a `NEXT_PUBLIC_*` name for it.
+- Enable Phone authentication in Supabase Auth and configure an SMS provider in the Supabase dashboard. This repository cannot configure the SMS provider or verify delivery without administrator access and provider credentials.
+- Test request OTP, verify OTP, session refresh, sign-out, duplicate first-login household creation, and an invalid/unverified session.
+- The application maps a confirmed Supabase Auth user ID to a Saathi household through `saathi_household_memberships`; a phone number alone never grants access, avoiding recycled-number takeover. The membership table is currently a proposed migration outside active discovery and must not be applied until migration-history reconciliation is approved. New households start with memory and outbound-call consent disabled.
+- The consent panel reads and writes purpose-specific consent through the authenticated same-origin proxy. Memory revocation relies on the existing database trigger to purge stored memories.
+- If the household table, secret key, or verified session is unavailable, household-specific actions fail closed. Do not enable memory or advertise personalized household workflows until the live test passes.
+
+## 4. Configure live providers one at a time
 
 Keep demo mode on until you have set the appropriate server-side credentials and successfully exercised each path.
 
@@ -50,7 +60,7 @@ Keep demo mode on until you have set the appropriate server-side credentials and
 
 After a provider is tested, turn `DEMO_MODE=false` only when the enabled capability paths are ready for the audience. Verify that unavailable providers fail honestly rather than returning demo values as live facts.
 
-## 4. Release smoke test
+## 5. Release smoke test
 
 Run locally before release:
 
@@ -75,7 +85,7 @@ npm run build
 
 The repository currently does not include `frontend/package-lock.json`, so the current workflow uses `npm install` rather than `npm ci`. For reproducible production builds, generate and commit a reviewed lockfile, then switch CI and this runbook to `npm ci`. If a command fails, fix the failure before calling the release ready. The hosted provider tests still need to be run against the actual deployed URLs. The proxy regression suite runs in CI but does not replace browser end-to-end or live-provider verification.
 
-## 5. Do not announce production readiness until these gates pass
+## 6. Do not announce production readiness until these gates pass
 
 - [ ] CI is green on the exact commit to deploy.
 - [ ] The hosted frontend can reach the hosted API with the expected CORS policy.
