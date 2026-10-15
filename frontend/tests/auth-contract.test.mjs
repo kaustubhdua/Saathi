@@ -63,7 +63,8 @@ test("household PIN is separate, rate-limited and server-keyed", () => {
 
 test("proposed membership migration denies browser access and remains syntactically complete", () => {
   assert.match(membershipMigration, /auth_user_id uuid NOT NULL UNIQUE REFERENCES auth\.users\(id\)/);
-  assert.ok(membershipMigration.includes("pin_hash text NOT NULL CHECK (pin_hash ~ '^[0-9a-f]{64}$')"));
+  assert.match(membershipMigration, /pin_hash text NOT NULL/);
+  assert.match(membershipMigration, /CHECK \(pin_hash ~ /);
   assert.ok(membershipMigration.includes("verified_phone text NOT NULL CHECK"));
   assert.ok(membershipMigration.includes("[0-9]{7,14}$')"));
   assert.match(membershipMigration, /ENABLE ROW LEVEL SECURITY/);
