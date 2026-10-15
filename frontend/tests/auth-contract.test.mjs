@@ -80,6 +80,11 @@ test("proposed membership migration denies browser access and remains syntactica
   assert.equal(membershipMigration.trim().endsWith(";"), true);
   assert.equal((membershipMigration.match(/CREATE INDEX/g) || []).length, 1);
   assert.match(membershipMigration, /CREATE OR REPLACE FUNCTION public\.saathi_enroll_household/);
+  assert.match(membershipMigration, /LANGUAGE plpgsql\s+SECURITY DEFINER\s+SET search_path = pg_catalog\s+AS \$saathi\$/);
+  assert.match(membershipMigration, /PERFORM pg_catalog\.pg_advisory_xact_lock\(/);
+  assert.match(membershipMigration, /pg_catalog\.hashtextextended\(p_auth_user_id::text, 0\)/);
+  assert.match(membershipMigration, /REVOKE ALL ON FUNCTION public\.saathi_enroll_household\(uuid, text, text\)\s+FROM PUBLIC, anon, authenticated/);
+  assert.match(membershipMigration, /GRANT EXECUTE ON FUNCTION public\.saathi_enroll_household\(uuid, text, text\)\s+TO service_role/);
 });
 
 
