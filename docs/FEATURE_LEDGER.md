@@ -41,6 +41,8 @@ Last verified: 2026-10-15 UTC
 - Task list/create/status routes use verified household context; idempotency-conflict recovery is additionally household-filtered and rejects mismatched rows. Automatic reminder dispatch and callback delivery remain disabled.
 - Memory list/write/delete routes require current persisted memory consent and explicit user input; automatic conversation extraction is not connected. Database trigger behavior and revocation races still require isolated live-database acceptance.
 
+- Exotel callback contract remains unverified: the current telephony handler requires `X-Saathi-Signature` HMAC. Exotel's documented ExoML real-time events instead send `Authorization: Basic` when configured and explicitly do not support custom headers; that does not establish the auth contract for the existing legacy `Calls/connect` `StatusCallback` path. Keep telephony disabled until the exact product/callback mode is confirmed and the matching auth/payload handler is tested. Official reference: https://docs.exotel.com/voice-apis/implementing-your-https-event-endpoint-for-real-time-call-events?open=browser.
+
 ## Other partial implementation
 
 - Scheme catalogue data carries reviewed/stale/unknown freshness rather than a false live retrieval timestamp. Eligibility and deadlines still need official portal verification.
