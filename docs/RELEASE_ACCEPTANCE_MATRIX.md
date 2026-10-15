@@ -75,5 +75,5 @@ The demo telephony fail-closed change is committed on `fix/dashboard-fail-closed
 
 ## Sprint note — scheme dates (2026-10-16 IST)
 
-- Scheme API payload now carries a distinct scheme inception/effective-from field, source review date and explanatory caveat. PM-KISAN uses 2018-12-01; PMFBY uses the non-date-specific season label Kharif 2016, per official source wording.
+- Scheme API payload now carries a distinct scheme inception/effective-from field, source review date (2026-10-15 UTC / 2026-10-16 IST) and explanatory caveat. PM-KISAN uses 2018-12-01; PMFBY uses the non-date-specific season label Kharif 2016, per official source wording.
 - Status: CODE + CI PENDING. This does not establish current state-wise eligibility, crop-season deadline or a live scheme catalogue feed. Those must be confirmed against the current official notice before advising an application.
