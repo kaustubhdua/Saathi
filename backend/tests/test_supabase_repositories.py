@@ -296,7 +296,7 @@ def test_call_repository_does_not_regress_terminal_call_state(monkeypatch):
         provider_call_id="exotelCall123",
         provider_status="ringing",
     ))
-    assert result == "connecting"
+    assert result == "completed"
     assert not any(method == "PATCH" and "/saathi_calls?" in url for method, url, _ in calls)
     assert any("/saathi_call_events?" in url for _, url, _ in calls)
 
