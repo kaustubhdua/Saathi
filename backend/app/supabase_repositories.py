@@ -219,6 +219,64 @@ class SupabaseTaskRepository(_SupabaseRepository):
         return self._to_task(rows[0])
 
 
+class SupabaseCallRepository(_SupabaseRepository):
+    """Persist outbound call lifecycle metadata before and after provider placement."""
+
+    async def create(
+        self,
+        *,
+        household_id: str,
+        phone_number: str,
+        provider: str,
+        language: str = "hi",
+    ) -> str:
+        household_uuid = self._uuid(household_id)
+        internal_call_id = str(uuid4())
+        now = datetime.now(timezone.utc).isoformat()
+        rows = await self._request(
+            "POST",
+            "saathi_calls",
+            {
+                "call_id": internal_call_id,
+                "household_id": household_uuid,
+                "phone_number": phone_number,
+                "direction": "outbound",
+                "status": "connecting",
+                "provider": provider[:80],
+                "language": language[:20] or "hi",
+                "started_at": now,
+                "updated_at": now,
+            },
+        )
+        if not rows:
+            raise SupabaseRepositoryError("call_record_create_failed")
+        return internal_call_id
+
+    async def mark_accepted(self, *, call_id: str, provider_call_id: str) -> None:
+        call_uuid = self._uuid(call_id)
+        rows = await self._request(
+            "PATCH",
+            f"saathi_calls?call_id=eq.{call_uuid}&select=call_id",
+            {
+                "provider_call_id": provider_call_id[:200],
+                "status": "connecting",
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            },
+        )
+        if not rows:
+            raise SupabaseRepositoryError("call_record_not_found")
+
+    async def mark_failed(self, *, call_id: str) -> None:
+        call_uuid = self._uuid(call_id)
+        now = datetime.now(timezone.utc).isoformat()
+        rows = await self._request(
+            "PATCH",
+            f"saathi_calls?call_id=eq.{call_uuid}&select=call_id",
+            {"status": "failed", "ended_at": now, "updated_at": now},
+        )
+        if not rows:
+            raise SupabaseRepositoryError("call_record_not_found")
+
     async def apply_provider_status(
         self,
         *,
@@ -291,61 +349,3 @@ class SupabaseTaskRepository(_SupabaseRepository):
         )
         return effective
 
-
-class SupabaseCallRepository(_SupabaseRepository):
-    """Persist outbound call lifecycle metadata before and after provider placement."""
-
-    async def create(
-        self,
-        *,
-        household_id: str,
-        phone_number: str,
-        provider: str,
-        language: str = "hi",
-    ) -> str:
-        household_uuid = self._uuid(household_id)
-        internal_call_id = str(uuid4())
-        now = datetime.now(timezone.utc).isoformat()
-        rows = await self._request(
-            "POST",
-            "saathi_calls",
-            {
-                "call_id": internal_call_id,
-                "household_id": household_uuid,
-                "phone_number": phone_number,
-                "direction": "outbound",
-                "status": "connecting",
-                "provider": provider[:80],
-                "language": language[:20] or "hi",
-                "started_at": now,
-                "updated_at": now,
-            },
-        )
-        if not rows:
-            raise SupabaseRepositoryError("call_record_create_failed")
-        return internal_call_id
-
-    async def mark_accepted(self, *, call_id: str, provider_call_id: str) -> None:
-        call_uuid = self._uuid(call_id)
-        rows = await self._request(
-            "PATCH",
-            f"saathi_calls?call_id=eq.{call_uuid}&select=call_id",
-            {
-                "provider_call_id": provider_call_id[:200],
-                "status": "connecting",
-                "updated_at": datetime.now(timezone.utc).isoformat(),
-            },
-        )
-        if not rows:
-            raise SupabaseRepositoryError("call_record_not_found")
-
-    async def mark_failed(self, *, call_id: str) -> None:
-        call_uuid = self._uuid(call_id)
-        now = datetime.now(timezone.utc).isoformat()
-        rows = await self._request(
-            "PATCH",
-            f"saathi_calls?call_id=eq.{call_uuid}&select=call_id",
-            {"status": "failed", "ended_at": now, "updated_at": now},
-        )
-        if not rows:
-            raise SupabaseRepositoryError("call_record_not_found")
