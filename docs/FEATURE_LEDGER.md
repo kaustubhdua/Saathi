@@ -75,3 +75,12 @@ Last verified: 2026-10-15 UTC (2026-10-16 IST)
 - Code and test committed to branch `fix/dashboard-fail-closed-agent-errors`.
 - Exact-head GitHub Actions run [#957](https://github.com/kaustubhdua/Saathi/actions/runs/38812480101) passed all five jobs on code SHA `4f1133b3dcd94914a33ec2b73b40add64991143e`. After the ledger/matrix cleanup, exact-head run [#959](https://github.com/kaustubhdua/Saathi/actions/runs/38812734100) also passed all five jobs on SHA `cff8b3ca9f41efcb6a0a7ad13ff2324763c300a2`. The current documentation refresh requires a fresh exact-head CI run before merge. CI does not establish production behaviour.
 - Demo phone calling is **UNAVAILABLE**. Production telephony remains **NOT VERIFIED** pending real Exotel sandbox acceptance, persisted purpose-specific consent, and a verified callback-authentication contract. No live call, database mutation, provider activation, or deployment was performed.
+
+
+## Engineering sprint — voice upload validation (2026-10-16 IST)
+
+- The voice endpoint now normalizes MIME types with codec parameters (for example, `audio/webm;codecs=opus`) before allowlist comparison, while still requiring an explicit supported audio type.
+- After the existing bounded 8 MB read, WAV uploads must have a RIFF/WAVE container signature and WebM uploads must have the EBML header. A spoofed MIME/header mismatch returns HTTP 415 before bytes reach STT/TTS providers.
+- Regression coverage checks malformed WebM, malformed WAV, and cross-container MIME spoofing; the provider is patched to fail if invalid media reaches it.
+- Exact-head CI for this new voice validation is pending; the preceding SHA's green run does not verify these changes. No provider call, database write, or deployment was performed.
+- Remaining: add bounded request-level timeout/cancellation and confirm browser-produced media fixtures against real low-end Android capture before enabling any live provider path.
