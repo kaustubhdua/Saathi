@@ -1,89 +1,140 @@
+import { createHmac, timingSafeEqual } from "node:crypto";
+import { cookies } from "next/headers";
 import { createSupabaseServerClient } from "./supabase/server";
 
-export type VerifiedHouseholdContext = {
-  identityId: string;
-  householdId: string;
-};
+export type VerifiedHouseholdContext = { identityId: string; householdId: string };
+type VerifiedPhoneUser = { id: string; phone: string; phone_confirmed_at: string };
+type HouseholdMembership = { id: string; household_id: string; pin_hash: string; verified_phone: string };
 
 const E164 = /^\+[1-9]\d{7,14}$/;
+const CONTEXT_COOKIE = "saathi_household_context";
+const CONTEXT_TTL_SECONDS = 60 * 60;
 
-export async function resolveVerifiedHouseholdContext(): Promise<VerifiedHouseholdContext | null> {
-  const auth = await createSupabaseServerClient();
-  if (!auth) return null;
-
-  const { data, error } = await auth.auth.getUser();
-  if (error || !data.user) return null;
-  const user = data.user;
-  if (!user.phone || !user.phone_confirmed_at || !E164.test(user.phone)) {
-    throw new Error("verified_phone_identity_required");
-  }
-
+function getStoreConfig() {
   const supabaseUrl = (process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "").replace(/\/$/, "");
   const secret = process.env.SUPABASE_SECRET_KEY;
   if (!supabaseUrl || !secret) throw new Error("household_store_not_configured");
-
-  const headers = {
-    apikey: secret,
-    Authorization: `Bearer ${secret}`,
-    Accept: "application/json",
-    "Content-Type": "application/json",
-  };
-
-  const findMembership = async (): Promise<string | null> => {
-    const url = new URL(`${supabaseUrl}/rest/v1/saathi_household_memberships`);
-    url.searchParams.set("auth_user_id", `eq.${user.id}`);
-    url.searchParams.set("select", "household_id");
-    url.searchParams.set("limit", "1");
-    const response = await fetch(url, { headers, cache: "no-store", signal: AbortSignal.timeout(4000) });
-    if (!response.ok) throw new Error("household_membership_store_not_configured");
-    const rows = await response.json() as Array<{ household_id?: string }>;
-    return typeof rows[0]?.household_id === "string" ? rows[0].household_id : null;
-  };
-
-  let householdId = await findMembership();
-  if (householdId) return { identityId: user.id, householdId };
-
-  const phoneUrl = new URL(`${supabaseUrl}/rest/v1/saathi_households`);
-  phoneUrl.searchParams.set("phone_number", `eq.${user.phone}`);
-  phoneUrl.searchParams.set("select", "id");
-  phoneUrl.searchParams.set("limit", "1");
-  const phoneResponse = await fetch(phoneUrl, { headers, cache: "no-store", signal: AbortSignal.timeout(4000) });
-  if (!phoneResponse.ok) throw new Error("household_lookup_failed");
-  const phoneRows = await phoneResponse.json() as Array<{ id?: string }>;
-  // A phone number may have been recycled. Never attach a new Supabase identity
-  // to an existing household just because it currently owns the same number.
-  const phoneAlreadyAssigned = typeof phoneRows[0]?.id === "string";
-
+  return { supabaseUrl, secret, headers: { apikey: secret, Authorization: `Bearer ${secret}`, Accept: "application/json", "Content-Type": "application/json" } };
+}
+function getSigningSecret() {
+  const value = process.env.HOUSEHOLD_CONTEXT_SIGNING_SECRET || "";
+  if (value.length < 32) throw new Error("household_context_signing_secret_not_configured");
+  return value;
+}
+function getPinPepper() {
+  const value = process.env.HOUSEHOLD_PIN_PEPPER || "";
+  if (value.length < 32) throw new Error("household_pin_pepper_not_configured");
+  return value;
+}
+export async function getVerifiedPhoneUser(): Promise<VerifiedPhoneUser | null> {
+  const auth = await createSupabaseServerClient();
+  if (!auth) return null;
+  const { data, error } = await auth.auth.getUser();
+  if (error || !data.user) return null;
+  const user = data.user;
+  if (!user.phone || !user.phone_confirmed_at || !E164.test(user.phone)) throw new Error("verified_phone_identity_required");
+  return { id: user.id, phone: user.phone, phone_confirmed_at: user.phone_confirmed_at };
+}
+export async function findHouseholdMembership(userId: string): Promise<HouseholdMembership | null> {
+  const { supabaseUrl, headers } = getStoreConfig();
+  const url = new URL(`${supabaseUrl}/rest/v1/saathi_household_memberships`);
+  url.searchParams.set("auth_user_id", `eq.${userId}`);
+  url.searchParams.set("select", "id,household_id,pin_hash,verified_phone");
+  url.searchParams.set("limit", "1");
+  const response = await fetch(url, { headers, cache: "no-store", signal: AbortSignal.timeout(4000) });
+  if (!response.ok) throw new Error("household_membership_store_not_configured");
+  const rows = await response.json() as HouseholdMembership[];
+  return rows[0] ?? null;
+}
+export function hashHouseholdPin(userId: string, pin: string): string {
+  return createHmac("sha256", getPinPepper()).update(`${userId}:${pin}`).digest("hex");
+}
+export function verifyHouseholdPin(userId: string, pin: string, expectedHex: string): boolean {
+  if (!/^[0-9a-f]{64}$/i.test(expectedHex)) return false;
+  const expected = Buffer.from(expectedHex, "hex");
+  const actual = Buffer.from(hashHouseholdPin(userId, pin), "hex");
+  return expected.length === actual.length && timingSafeEqual(expected, actual);
+}
+async function findHouseholdByPhone(supabaseUrl: string, headers: Record<string, string>, phone: string): Promise<string | null> {
+  const url = new URL(`${supabaseUrl}/rest/v1/saathi_households`);
+  url.searchParams.set("phone_number", `eq.${phone}`);
+  url.searchParams.set("select", "id");
+  url.searchParams.set("limit", "1");
+  const response = await fetch(url, { headers, cache: "no-store", signal: AbortSignal.timeout(4000) });
+  if (!response.ok) throw new Error("household_lookup_failed");
+  const rows = await response.json() as Array<{ id?: string }>;
+  return typeof rows[0]?.id === "string" ? rows[0].id : null;
+}
+export async function createHouseholdMembership(user: VerifiedPhoneUser, pinHash: string): Promise<HouseholdMembership> {
+  const { supabaseUrl, headers } = getStoreConfig();
+  const existing = await findHouseholdMembership(user.id);
+  if (existing) {
+    if (existing.pin_hash !== pinHash) throw new Error("household_pin_already_set");
+    return existing;
+  }
+  const phoneAlreadyAssigned = Boolean(await findHouseholdByPhone(supabaseUrl, headers, user.phone));
   const householdUrl = `${supabaseUrl}/rest/v1/saathi_households${phoneAlreadyAssigned ? "" : "?on_conflict=phone_number"}`;
   const householdResponse = await fetch(householdUrl, {
     method: "POST",
     headers: { ...headers, Prefer: phoneAlreadyAssigned ? "return=representation" : "resolution=ignore-duplicates,return=representation" },
-    body: JSON.stringify({
-      phone_number: phoneAlreadyAssigned ? null : user.phone,
-      memory_consent: false,
-      outbound_call_consent: false,
-    }),
+    body: JSON.stringify({ phone_number: phoneAlreadyAssigned ? null : user.phone, memory_consent: false, outbound_call_consent: false }),
     cache: "no-store",
     signal: AbortSignal.timeout(4000),
   });
   if (!householdResponse.ok) throw new Error("household_enrollment_failed");
   const householdRows = await householdResponse.json() as Array<{ id?: string }>;
-  householdId = typeof householdRows[0]?.id === "string" ? householdRows[0].id : null;
-
-  if (householdId) {
-    const membershipUrl = `${supabaseUrl}/rest/v1/saathi_household_memberships?on_conflict=auth_user_id`;
-    const membershipResponse = await fetch(membershipUrl, {
-      method: "POST",
-      headers: { ...headers, Prefer: "resolution=ignore-duplicates,return=representation" },
-      body: JSON.stringify({ auth_user_id: user.id, household_id: householdId, verified_phone: user.phone }),
-      cache: "no-store",
-      signal: AbortSignal.timeout(4000),
-    });
-    if (!membershipResponse.ok) throw new Error("household_membership_enrollment_failed");
-  }
-
-  // Handles concurrent first-login requests: only one membership row can win.
-  householdId = await findMembership();
+  let householdId = typeof householdRows[0]?.id === "string" ? householdRows[0].id : null;
+  if (!householdId && !phoneAlreadyAssigned) householdId = await findHouseholdByPhone(supabaseUrl, headers, user.phone);
   if (!householdId) throw new Error("household_enrollment_unavailable");
-  return { identityId: user.id, householdId };
+  const membershipUrl = `${supabaseUrl}/rest/v1/saathi_household_memberships?on_conflict=auth_user_id`;
+  const membershipResponse = await fetch(membershipUrl, {
+    method: "POST",
+    headers: { ...headers, Prefer: "resolution=ignore-duplicates,return=representation" },
+    body: JSON.stringify({ auth_user_id: user.id, household_id: householdId, verified_phone: user.phone, pin_hash: pinHash }),
+    cache: "no-store",
+    signal: AbortSignal.timeout(4000),
+  });
+  if (!membershipResponse.ok) throw new Error("household_membership_enrollment_failed");
+  const membershipRows = await membershipResponse.json() as HouseholdMembership[];
+  const membership = membershipRows[0] ?? await findHouseholdMembership(user.id);
+  if (!membership || membership.pin_hash !== pinHash) throw new Error("household_membership_conflict");
+  return membership;
+}
+export async function setHouseholdContextCookie(userId: string, householdId: string) {
+  const signingSecret = getSigningSecret();
+  const payload = Buffer.from(JSON.stringify({ userId, householdId, exp: Math.floor(Date.now() / 1000) + CONTEXT_TTL_SECONDS })).toString("base64url");
+  const signature = createHmac("sha256", signingSecret).update(payload).digest("base64url");
+  const cookieStore = await cookies();
+  cookieStore.set(CONTEXT_COOKIE, `${payload}.${signature}`, {
+    httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/", maxAge: CONTEXT_TTL_SECONDS,
+  });
+}
+export async function clearHouseholdContextCookie() {
+  const cookieStore = await cookies();
+  cookieStore.set(CONTEXT_COOKIE, "", { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/", maxAge: 0 });
+}
+async function readHouseholdContextCookie(userId: string): Promise<string | null> {
+  const signingSecret = getSigningSecret();
+  const cookieStore = await cookies();
+  const raw = cookieStore.get(CONTEXT_COOKIE)?.value;
+  if (!raw) return null;
+  const [payload, signature] = raw.split(".");
+  if (!payload || !signature) return null;
+  const expected = createHmac("sha256", signingSecret).update(payload).digest();
+  const supplied = Buffer.from(signature, "base64url");
+  if (supplied.length !== expected.length || !timingSafeEqual(supplied, expected)) return null;
+  try {
+    const value = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as { userId?: string; householdId?: string; exp?: number };
+    if (value.userId !== userId || typeof value.householdId !== "string" || typeof value.exp !== "number" || value.exp <= Math.floor(Date.now() / 1000)) return null;
+    return value.householdId;
+  } catch { return null; }
+}
+export async function resolveVerifiedHouseholdContext(): Promise<VerifiedHouseholdContext | null> {
+  const user = await getVerifiedPhoneUser();
+  if (!user) return null;
+  const cookieHouseholdId = await readHouseholdContextCookie(user.id);
+  if (!cookieHouseholdId) throw new Error("household_pin_verification_required");
+  const membership = await findHouseholdMembership(user.id);
+  if (!membership || membership.household_id !== cookieHouseholdId) throw new Error("household_context_mismatch");
+  return { identityId: user.id, householdId: membership.household_id };
 }
