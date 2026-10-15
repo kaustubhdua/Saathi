@@ -1,0 +1,40 @@
+-- PROPOSED ONLY. Do not move into supabase/migrations or apply until
+-- PR #58's legacy migration-history reconciliation is approved across environments.
+-- Phone OTP alone is not household identity: auth_user_id binds the verified
+-- Supabase Auth account and an additional household PIN prevents takeover if a
+-- phone number is recycled.
+CREATE TABLE IF NOT EXISTS public.saathi_household_memberships (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  auth_user_id uuid NOT NULL UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE,
+  household_id uuid NOT NULL REFERENCES public.saathi_households(id) ON DELETE CASCADE,
+  verified_phone text NOT NULL CHECK (verified_phone ~ '^\+[1-9][0-9]{7,14}$'),
+  pin_hash text NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT saathi_household_membership_pin_hash CHECK (pin_hash ~ '^[0-9a-f]{64}
+
+CREATE INDEX IF NOT EXISTS saathi_household_memberships_household_id_idx
+  ON public.saathi_household_memberships (household_id);
+
+ALTER TABLE public.saathi_household_memberships ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE public.saathi_household_memberships FROM PUBLIC, anon, authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.saathi_household_memberships TO service_role;
+
+COMMENT ON TABLE public.saathi_household_memberships IS
+  'Maps a verified Supabase Auth user and additional household PIN to one Saathi household; service_role only. A phone number alone must not grant access.';
+COMMENT ON COLUMN public.saathi_household_memberships.pin_hash IS
+  'HMAC-SHA256 using a server-only pepper; the pepper must never be stored in the database or exposed to clients.';
+)
+);
+
+CREATE INDEX IF NOT EXISTS saathi_household_memberships_household_id_idx
+  ON public.saathi_household_memberships (household_id);
+
+ALTER TABLE public.saathi_household_memberships ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE public.saathi_household_memberships FROM PUBLIC, anon, authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.saathi_household_memberships TO service_role;
+
+COMMENT ON TABLE public.saathi_household_memberships IS
+  'Maps a verified Supabase Auth user and additional household PIN to one Saathi household; service_role only. A phone number alone must not grant access.';
+COMMENT ON COLUMN public.saathi_household_memberships.pin_hash IS
+  'HMAC-SHA256 using a server-only pepper; the pepper must never be stored in the database or exposed to clients.';
