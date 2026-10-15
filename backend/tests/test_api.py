@@ -77,8 +77,8 @@ def test_outbound_call_demo_mode_does_not_bypass_auth_in_production(monkeypatch)
     [
         ("audio/webm;codecs=opus", b"not actually webm"),
         ("audio/wav", b"not actually wav"),
-        ("audio/webm", b"RIFF" + b"\\x00" * 4 + b"WAVE" + b"invalid webm"),
-        ("audio/x-wav", b"\\x1aE\\xdf\\xa3" + b"invalid wav"),
+        ("audio/webm", b"RIFF" + b"\x00" * 4 + b"WAVE" + b"invalid webm"),
+        ("audio/x-wav", b"\x1aE\xdf\xa3" + b"invalid wav"),
     ],
 )
 def test_voice_upload_rejects_mismatched_audio_container_before_provider(
