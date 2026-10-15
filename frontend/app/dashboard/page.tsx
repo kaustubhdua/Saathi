@@ -278,7 +278,7 @@ export default function Dashboard() {
         <section className="status-grid">
           <article className="metric-card accent">
             <div className="metric-icon"><PhoneCall size={18} /></div>
-            <div><small>VOICE CHANNEL</small><strong>Missed call → Saathi</strong><p>Provider-gated · Exotel adapter ready</p></div>
+            <div><small>VOICE CHANNEL</small><strong>Phone channel</strong><p>Exotel adapter present · live call not verified</p></div>
           </article>
           <article className="metric-card">
             <div className="metric-icon"><Bot size={18} /></div>
@@ -317,7 +317,7 @@ export default function Dashboard() {
               <button type="button" className={`voice-button ${voiceState === "listening" ? "active" : ""}`} onClick={toggleVoice} aria-label="Toggle microphone" disabled={loading || voiceState === "speaking"}>
                 <Mic2 size={18} /> {voiceState === "listening" ? "Stop recording" : "Start voice"}
               </button>
-              <span><Volume2 size={13} /> {capabilities.speech ? "Real mic → provider STT → agent → provider TTS" : "Browser voice preview · provider STT/TTS not configured"}</span>
+              <span><Volume2 size={13} /> {capabilities.speech ? "Configured provider path · live round trip still requires verification" : "Browser voice preview · provider STT/TTS not configured"}</span>
             </div>
 
             {voiceError && <div className="voice-error" role="alert" aria-live="assertive">{voiceError}</div>}
@@ -368,8 +368,8 @@ export default function Dashboard() {
             <div className="context-title"><div><span className="panel-kicker">SOURCE HEALTH</span><h3>What can we trust?</h3></div><CheckCircle2 size={18} /></div>
             <div className="health-list">
               <div><span><Wheat size={14} /> Mandi tool</span><b className={capabilities.mandi ? "live-badge" : "demo-badge"}>{demoMode ? "DEMO MODE" : capabilities.mandi ? "LIVE OGD" : "NOT CONFIGURED"}</b></div>
-              <div><span><CloudRain size={14} /> Weather tool</span><b className="live-badge">Open-Meteo adapter</b></div>
-              <div><span><ShieldCheck size={14} /> Scheme rules</span><b className="live-badge">Deterministic</b></div>
+              <div><span><CloudRain size={14} /> Weather tool</span><b className={demoMode ? "demo-badge" : "live-badge"}>{demoMode ? "DEMO MODE" : "Open-Meteo configured"}</b></div>
+              <div><span><ShieldCheck size={14} /> Scheme rules</span><b className="demo-badge">STATIC CATALOGUE</b></div>
             </div>
           </article>
         </section>
@@ -382,8 +382,8 @@ export default function Dashboard() {
 
         <section className="fallback-card" aria-labelledby="fallback-title">
           <div className="fallback-icon"><UserRound size={22} /></div>
-          <div className="fallback-copy"><span className="panel-kicker">HUMAN FALLBACK</span><h3 id="fallback-title">When confidence drops, hand the call to a person.</h3><p>Saathi can package the conversation context for a volunteer instead of forcing the model to answer beyond its safety or confidence boundary.</p></div>
-          <div className="fallback-status"><span><i /> Ready</span><small>Policy threshold · 0.65</small></div>
+          <div className="fallback-copy"><span className="panel-kicker">HUMAN FALLBACK</span><h3 id="fallback-title">Human escalation policy</h3><p>Explicit requests and low-confidence/provider failures can be flagged in the response. A persistent volunteer queue, assignment and delivery workflow is not connected in this prototype.</p></div>
+          <div className="fallback-status"><span><i /> Policy only</span><small>Volunteer queue · not connected</small></div>
         </section>
 
         <section className="flow-strip">
