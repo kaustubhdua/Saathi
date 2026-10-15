@@ -8,7 +8,8 @@ Last verified: 2026-10-15 UTC
 - Telephony callback lifecycle and live-call safety gate: [PR #61](https://github.com/kaustubhdua/Saathi/pull/61), merged.
 - Dashboard keyboard accessibility and truthful status labels: [PR #63](https://github.com/kaustubhdua/Saathi/pull/63), merged.
 - Shared production rate limiting: [PR #64](https://github.com/kaustubhdua/Saathi/pull/64), merged; production requires configured Upstash Redis and a trusted single-IP header.
-- Phone OTP, household PIN and purpose-specific consent: [PR #68](https://github.com/kaustubhdua/Saathi/pull/68), draft; prior exact-head CI run #851 passed all five jobs on `ca19ba37e6e3b27fada7094388db110ba946a16e`. This follow-up branch adds fail-closed trusted-IP validation and bounded local rate-limit storage; it must pass its own exact-head CI before integration. Migration and live provider gates remain.
+- Phone OTP, household PIN and purpose-specific consent: [PR #68](https://github.com/kaustubhdua/Saathi/pull/68), draft; exact-head CI run #865 passed all five jobs on `1670419568414472d3d7ee1b150eece258deedd9`. Live Auth/SMS and migration gates remain.
+- Persistent household tasks and explicit memory: [PR #75](https://github.com/kaustubhdua/Saathi/pull/75), draft stacked on PR #68. Fresh exact-head CI is pending after a stale migration-contract test was corrected. Tasks and user-entered memory APIs/UI are implemented; scheduled reminders and automatic memory extraction remain disabled.
 - Migration quarantine/index proposal: [PR #58](https://github.com/kaustubhdua/Saathi/pull/58), draft; do not merge until all environments' migration histories are reconciled.
 - [Release acceptance matrix](RELEASE_ACCEPTANCE_MATRIX.md)
 - [Provider verification plan](PROVIDER_VERIFICATION.md)
@@ -23,7 +24,7 @@ Last verified: 2026-10-15 UTC
 - PR #63 merged after frontend accessibility contract tests and full CI passed.
 - PR #64 merged after CI run #796 passed. Production API requests now fail closed unless shared Upstash rate limiting and a trusted single-IP header are configured. The Upstash credentials and hosting-header behavior have not been verified in a live deployment.
 
-## Partial — PR #68 authentication candidate; trusted-IP hardening follow-up pending CI
+## Partial — PR #68 auth candidate and PR #75 workflow integration
 
 - Supabase SSR phone OTP login routes and an accessible login page are added. SMS delivery requires enabling Supabase Phone Auth and configuring the SMS provider in the project dashboard.
 - The server verifies the Supabase user and confirmed E.164 phone, then maps the immutable Supabase Auth user ID through the proposed `saathi_household_memberships` table. A phone number alone never grants access, avoiding recycled-number takeover.
@@ -38,7 +39,8 @@ Last verified: 2026-10-15 UTC
 
 - Scheme catalogue data carries reviewed/stale/unknown freshness rather than a false live retrieval timestamp. Eligibility and deadlines still need official portal verification.
 - Mandi records with invalid, future-dated or over-seven-day observations are withheld from current-price claims. Live OGD record selection, market ambiguity and units still need provider-backed verification.
-- Consent and task repository/schema foundations exist, but automatic memory writes, durable reminder dispatch, volunteer assignment/resolution and cross-household integration tests remain incomplete.
+- PR #75 adds household-scoped task list/create/status endpoints and dashboard actions; reminder delivery and automatic callbacks remain disabled. It also adds user-entered memory list/save/delete with consent checks, expiry filtering and database guard rejection handling. Automatic conversation-memory extraction remains disabled.
+- A concurrency risk was identified in the existing memory-consent trigger: it reads the household consent row without a row lock. PR #75 proposes a forward-only replacement under `docs/proposed-migrations/20261015090000_saathi_memory_consent_serialization.sql.proposed`, using `SELECT ... FOR UPDATE` to serialize writes against revocation. This is not active or applied; it must be reviewed and applied only after migration-history reconciliation.
 - PR #58 quarantines two unprefixed legacy migrations outside active discovery, adds a namespace guard covering DDL/DML/read references, and proposes three Saathi-only indexes. CI run #840 passed all five jobs on `bb0b9c50dd3c0eb2d2d09dde5554d857b98088dd`; keep it draft until migration history is reconciled across every relevant environment.
 
 ## Blocked / not tested
@@ -51,11 +53,11 @@ Last verified: 2026-10-15 UTC
 
 ## Next actions
 
-1. Keep PR #68 draft until the trusted-IP hardening follow-up is integrated and green, and the membership migration can be safely activated after PR #58 is reconciled. Configure Supabase Phone Auth/SMS and server-only secrets, then test the full identity/consent flow in an isolated environment.
+1. Keep PR #68 and stacked PR #75 draft until exact-head CI is green. Configure Supabase Phone Auth/SMS and server-only secrets, then test the full identity/consent flow in an isolated environment.
 2. Configure Supabase Phone Auth and SMS delivery, then verify OTP, session refresh, sign-out, first-household creation, phone-number recycling isolation and consent behavior against an isolated test household.
-3. Prove memory consent/revocation through the actual repository and database trigger; connect memory writes only after identity and consent tests pass.
+3. Review the proposed row-locking consent-trigger migration, reconcile migration history, then verify concurrent memory write/revocation against an isolated database. Keep automatic extraction disabled.
 4. Keep PR #58 draft until migration history is reconciled across environments; do not apply live DDL before approval.
 5. Configure/test Upstash and the hosting platform's trusted IP header before enabling production API traffic.
 6. Test real providers with authorized credentials and attach redacted evidence. Keep phone AI unavailable until callback signature verification is proven.
-7. Complete durable reminder/volunteer workflows, reproducible frontend builds, accessibility/performance checks, monitoring and rollback evidence.
+7. Complete durable reminder dispatch and volunteer queue, reproducible frontend builds, accessibility/performance checks, monitoring and rollback evidence.
 8. Deploy only after 2026-10-24 and only after the release matrix's required gates are satisfied.
