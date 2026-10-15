@@ -42,5 +42,6 @@ test("proxy resolves household context server-side and protects consent routes",
   assert.match(proxyRoute, /api\/v1\/household\/consent/);
   assert.match(proxyRoute, /household_identity_unavailable/);
   assert.match(proxyRoute, /household_pin_verification_required/);
+  assert.match(proxyRoute, /api\/v1\/household\/tasks/);
   assert.match(proxyRoute, /requiresUserAction \? 401 : 503/);
 });
