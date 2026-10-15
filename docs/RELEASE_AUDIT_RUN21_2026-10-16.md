@@ -8,7 +8,7 @@ Scope: GitHub branch review, static security hardening, read-only Supabase verif
 - Integrated candidate: [PR #68](https://github.com/kaustubhdua/Saathi/pull/68), open and draft.
 - Migration-safety candidate: [PR #58](https://github.com/kaustubhdua/Saathi/pull/58), open and draft.
 - Accessibility/error-state PR #76 is closed without merge because its changes are consolidated into PR #68.
-- The latest exact-head Actions run is always linked from PR #68. Earlier green runs do not validate later commits; check the current head before treating any result as current.
+- Exact-tree validation PR #77 run #945 passed all five CI jobs on `0d8a68aaa471370d4aed065b7b1b238726c50c12`; PR #77 was closed after validation. PR #68 remains the integration candidate. Any subsequent commit requires a fresh exact-head run.
 
 ### Atomic household enrollment hardening
 
@@ -40,7 +40,7 @@ Read-only Vercel discovery found no Vercel project linked to `kaustubhdua/Saathi
 
 ## CI and quality gates
 
-The workflow includes frontend lint, Node contract tests, TypeScript, production build and dashboard smoke; backend tests and API smoke; dependency audit; Docker build; and Streamlit smoke. The exact current-head result is available on [PR #68](https://github.com/kaustubhdua/Saathi/pull/68).
+The workflow includes frontend lint, Node contract tests, TypeScript, production build and dashboard smoke; backend tests and API smoke; dependency audit; Docker build; and Streamlit smoke. Run #945 passed all five jobs on the exact candidate tree, including the new bounded streaming JSON parser tests for OTP/verify/PIN. See [PR #68](https://github.com/kaustubhdua/Saathi/pull/68).
 
 The full frontend dependency tree has previously reported five high-severity development-tool-chain advisories. Production-only `npm audit --omit=dev --audit-level=high` passes. Do not force a major Next/ESLint downgrade; record and reassess upstream advisories before release.
 
