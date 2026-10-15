@@ -1,5 +1,6 @@
 import { isAuthRateLimited } from "../../../../lib/auth-rate-limit.mjs";
 import { createSupabaseServerClient } from "../../../../lib/supabase/server";
+import { readBoundedJson } from "../../../../lib/auth-request";
 
 function validOrigin(request: Request) {
   const origin = request.headers.get("origin");
@@ -9,16 +10,9 @@ function validOrigin(request: Request) {
 
 export async function POST(request: Request) {
   if (!validOrigin(request)) return Response.json({ detail: "origin_not_allowed" }, { status: 403 });
-  const length = Number(request.headers.get("content-length") || 0);
-  if (length > 4096) return Response.json({ detail: "request_body_too_large" }, { status: 413 });
-  let body: { phone?: unknown; token?: unknown };
-  try {
-    const raw = await request.text();
-    if (raw.length > 4096) return Response.json({ detail: "request_body_too_large" }, { status: 413 });
-    body = JSON.parse(raw);
-  } catch {
-    return Response.json({ detail: "invalid_json" }, { status: 400 });
-  }
+  const parsed = await readBoundedJson(request);
+  if (!parsed.ok) return Response.json({ detail: parsed.detail }, { status: parsed.status, headers: { "Cache-Control": "no-store" } });
+  const body = parsed.value;
   if (typeof body.phone !== "string" || !/^\+[1-9]\d{7,14}$/.test(body.phone) || typeof body.token !== "string" || !/^\d{6}$/.test(body.token)) {
     return Response.json({ detail: "valid_phone_and_six_digit_code_required" }, { status: 422 });
   }
