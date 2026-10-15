@@ -8,7 +8,7 @@ This is an evidence ledger, not a declaration that release gates have passed. Au
 
 - Main baseline for this branch: `edd5164fc406b87a5ab811d9746ad21e7e4c1d1f` after PR #66.
 - PR #57 (API proxy/source freshness), #59 (identity fail-closed guard), #61 (telephony callback state handling), #63 (dashboard accessibility) and #64 (shared production rate limiting) are merged.
-- PR #68 proposes phone OTP, household PIN, user-to-household mapping and consent workflows; CI, lockfile regeneration, migration activation and live Auth/SMS tests remain outstanding.
+- PR #68 implements phone OTP, household PIN, user-to-household mapping and consent workflows; exact-head CI run #828 passed all five jobs on `a7b187091ecdc87283077addd9ad93ced62eade5`. Migration activation and live Auth/SMS tests remain outstanding.
 - PR #58 remains draft because other environments' migration histories are not verified.
 - Production Vercel configuration/deployment remains deferred until 2026-10-24.
 - No live provider test, live database DDL, or production deployment is claimed here.
@@ -21,7 +21,7 @@ This is an evidence ledger, not a declaration that release gates have passed. Au
 | 2 | Production readiness fails when operator auth is absent | CODE + CI | Backend tests pass; verify real deployment configuration |
 | 3 | Production API traffic uses shared rate limiting and trusted client IP | CODE; DEPLOYMENT BLOCKED | PR #64 merged; configure Upstash credentials and verify hosting overwrites the trusted single-IP header |
 | 4 | Verified identity maps to a household; caller-supplied UUID cannot select another household | PARTIAL — PR #68 draft | Phone OTP and PIN code are proposed; review/apply auth-user membership migration after PR #58 reconciliation, then test number-recycling isolation |
-| 5 | Consent grant/status/revocation are persisted and identity-bound | PARTIAL — PR #65 draft | Consent UI/API added in PR #68; verify real Supabase Auth, household mapping and persistence in an isolated test household |
+| 5 | Consent grant/status/revocation are persisted and identity-bound | PARTIAL — PR #68 draft | CI covers API contracts; verify real Supabase Auth, household mapping and persisted grant/revoke behavior in an isolated test household |
 | 6 | Memory writes require current consent; revocation deletes memory | SCHEMA + API FOUNDATION | Automatic conversation-memory writes are not connected; test repository/trigger path and concurrent revoke/write behavior |
 | 7 | Two households cannot read/update each other's tasks, memory or cases | NOT COMPLETE | Two-identity integration tests against a non-production database |
 | 8 | Live weather and mandi results have correct source and observation/retrieval timestamps | NOT VERIFIED | Authorized provider tests; validate units, location matching, freshness and failure cases |
@@ -30,7 +30,7 @@ This is an evidence ledger, not a declaration that release gates have passed. Au
 | 11 | Reminder/volunteer workflows persist, dispatch, retry, assign and resolve correctly | NOT COMPLETE | Durable dispatcher, atomic claims, retry/quiet-hour tests and operator queue evidence |
 | 12 | Mobile, keyboard, screen-reader, reduced-motion and WCAG 2.2 AA-oriented checks pass | PARTIAL | PR #63 adds keyboard tab navigation and live regions; complete real-device/browser and accessibility audit |
 | 13 | Core Web Vitals, SEO, responsive behavior and error states are measured and pass | NOT VERIFIED | Lighthouse/field data, SEO checks and hosted browser smoke results |
-| 14 | Reproducible frontend build uses a reviewed lockfile and npm ci | NOT COMPLETE | Generate and commit frontend/package-lock.json, switch CI to npm ci and verify exact SHA |
+| 14 | Reproducible frontend build uses a reviewed lockfile and npm ci | CODE + CI PASS | Lockfile committed; run #828 passed `npm ci`, lint, tests, TypeScript and build on exact head `a7b187091ecdc87283077addd9ad93ced62eade5` |
 | 15 | Exact release commit has complete CI, deployed SHA, smoke tests, monitoring and rollback evidence | NOT COMPLETE | All manual gates, deployment evidence, runbook and rollback rehearsal |
 
 ## Evidence links
