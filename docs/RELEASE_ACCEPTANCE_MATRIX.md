@@ -9,7 +9,7 @@ This is an evidence ledger, not a declaration that release gates have passed. Au
 - Main baseline for this branch: `edd5164fc406b87a5ab811d9746ad21e7e4c1d1f` after PR #66.
 - PR #57 (API proxy/source freshness), #59 (identity fail-closed guard), #61 (telephony callback state handling), #63 (dashboard accessibility) and #64 (shared production rate limiting) are merged.
 - PR #68 implements phone OTP, household PIN, user-to-household mapping and consent workflows; prior exact-head CI run #851 passed all five jobs on `ca19ba37e6e3b27fada7094388db110ba946a16e`. A follow-up branch now rejects invalid/missing trusted IPs before Redis access and bounds development limiter memory; its CI is pending.
-- The follow-up must be integrated before the auth candidate is considered review-ready; live Auth/SMS and migration activation remain outstanding.
+- Trusted-IP validation and phone-enrollment collision isolation fixes are committed to the auth branch with regression coverage; verify exact-head CI. Live Auth/SMS and migration activation remain outstanding.
 - PR #58 remains draft because other environments' migration histories are not verified; its latest exact-head CI run #840 passed all five jobs.
 - Production Vercel configuration/deployment remains deferred until 2026-10-24.
 - No live provider test, live database DDL, or production deployment is claimed here.
@@ -21,7 +21,7 @@ This is an evidence ledger, not a declaration that release gates have passed. Au
 | 1 | Browser API requests use the same-origin allowlisted proxy; server token never enters browser bundles | CODE + CI | PR #57 merged; inspect production build/environment and run hosted request tests |
 | 2 | Production readiness fails when operator auth is absent | CODE + CI | Backend tests pass; verify real deployment configuration |
 | 3 | Production API traffic uses shared rate limiting and trusted client IP | CODE; DEPLOYMENT BLOCKED | PR #64 merged; auth follow-up rejects missing/ambiguous IPs before Redis access; configure Upstash credentials and verify hosting overwrites the trusted single-IP header |
-| 4 | Verified identity maps to a household; caller-supplied UUID cannot select another household | PARTIAL — PR #68 draft | Phone OTP and PIN code are proposed; fix trusted-IP fail-closed gap in follow-up PR, review/apply auth-user membership migration after PR #58 reconciliation, then test number-recycling isolation |
+| 4 | Verified identity maps to a household; caller-supplied UUID cannot select another household | PARTIAL — PR #68 draft | Phone OTP and PIN code are proposed; trusted-IP fail-closed and concurrent phone-collision isolation fixes are committed with regression tests; review/apply auth-user membership migration only after PR #58 reconciliation, then test number-recycling isolation in an isolated environment |
 | 5 | Consent grant/status/revocation are persisted and identity-bound | PARTIAL — PR #68 draft | CI covers API contracts; verify real Supabase Auth, household mapping and persisted grant/revoke behavior in an isolated test household |
 | 6 | Memory writes require current consent; revocation deletes memory | SCHEMA + API FOUNDATION | Automatic conversation-memory writes are not connected; test repository/trigger path and concurrent revoke/write behavior |
 | 7 | Two households cannot read/update each other's tasks, memory or cases | NOT COMPLETE | Two-identity integration tests against a non-production database |
