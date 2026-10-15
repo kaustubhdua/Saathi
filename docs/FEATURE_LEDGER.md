@@ -17,6 +17,7 @@ Last verified: 2026-10-15 UTC
 ## Verified
 
 - Read-only verification of the Nihdhoom project on 2026-10-15 confirms eight `saathi_*` tables with RLS enabled, six recorded Saathi migrations including `saathi_memory_consent_locking`, and no `saathi_household_memberships` table. The two legacy unprefixed migration versions/tables remain absent in this project. No live DDL or production deployment was performed; other target environments still need migration-history reconciliation.
+- A separate Supabase project named `Saathi` in `ap-northeast-2` is `INACTIVE`; its read-only migration-history query timed out. It was not restored. That environment remains unverified, and restoration must not be attempted without explicit operator approval.
 - PR #57 merged as `e8a13bdd0022f33707e6a9338d3cc7fcdf039615`; exact-head CI run #770 passed all five jobs, and main run #771 passed.
 - PR #59 merged as `d048170180a24a36280c557150753c687139d9d7`; exact-head CI run #774 passed all five jobs.
 - PR #61 merged after exact-head CI run #782 passed all five jobs. Callback state processing is implemented, but live calls remain disabled until the real provider authentication contract is verified.
