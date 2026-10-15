@@ -55,3 +55,12 @@ Last verified: 2026-10-15 UTC
 - Added regression tests for high-cardinality input, malformed IP values, invalid Upstash host/port, missing configuration, outage, response type validation, over-limit handling, and pseudonymous key construction.
 - Status: **merged; exact-head CI passed**. Run #796 passed all five jobs on PR head `b6820fae1e7fbf70cebc931eb3647abdf864a293`. The local environment could not clone GitHub, so no local full build is claimed.
 - Operational dependency: provision the shared Upstash REST store and verify the hosting proxy overwrites the configured IP header before production traffic is enabled. This change intentionally fails closed until configured.
+
+
+## Engineering sprint — dashboard failure-path hardening (2026-10-16)
+
+- Branch: `fix/dashboard-fail-closed-agent-errors`.
+- Change: agent requests now have a 20-second abort timeout, validate the minimum response contract, clear stale answers before a new request, and render failures in a separate accessible alert with retry. The catch path no longer creates a synthetic `Result`.
+- Regression coverage: `frontend/tests/agent-error-contract.test.mjs` checks timeout/abort wiring, malformed response rejection, stale-result clearing, accessible error state, retry control, and absence of the previous fabricated-result pattern.
+- Verification: source changes committed on the feature branch. Full lockfile install, lint, TypeScript, build, and GitHub Actions have not yet been run against this branch; do not treat this item as release-verified until CI passes.
+- Production: not deployed; deployed SHA and real backend journey remain unverified. No database or provider configuration changed.
