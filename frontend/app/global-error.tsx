@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 export default function GlobalError({ reset }: { error: Error & { digest?: string }; reset: () => void }) {
   return (
     <html lang="en">
@@ -10,7 +12,7 @@ export default function GlobalError({ reset }: { error: Error & { digest?: strin
           <p role="alert" style={{ lineHeight: 1.7, color: "#68736c" }}>Something went wrong. Internal error details are hidden to protect your information.</p>
           <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", marginTop: "22px" }}>
             <button type="button" onClick={reset} style={{ minHeight: "44px", padding: "10px 14px", border: 0, borderRadius: "8px", background: "#183d32", color: "white", fontWeight: 700, cursor: "pointer" }}>Try again</button>
-            <a href="/" style={{ minHeight: "44px", display: "inline-flex", alignItems: "center", padding: "10px 14px", border: "1px solid #e7e8de", borderRadius: "8px", color: "#183d32", textDecoration: "none", fontWeight: 700 }}>Back to Saathi</a>
+            <Link href="/" style={{ minHeight: "44px", display: "inline-flex", alignItems: "center", padding: "10px 14px", border: "1px solid #e7e8de", borderRadius: "8px", color: "#183d32", textDecoration: "none", fontWeight: 700 }}>Back to Saathi</Link>
           </div>
         </main>
       </body>
