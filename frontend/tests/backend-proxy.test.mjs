@@ -166,3 +166,85 @@ test("consent endpoint allows only purpose-specific booleans", async () => {
   assert.deepEqual(JSON.parse(Buffer.from(init.body).toString("utf8")), { purpose: "memory", granted: true });
   assert.equal(new Headers(init.headers).get("X-Saathi-Verified-Household"), context.householdId);
 });
+
+
+test("household task routes require verified identity context", async () => {
+  setup();
+  globalThis.fetch = async () => { throw Error("must not fetch"); };
+  const response = await proxyRequest(req("api/v1/household/tasks"), ["api","v1","household","tasks"]);
+  assert.equal(response.status, 401);
+});
+
+test("task creation accepts only a bounded task payload", async () => {
+  setup();
+  let init;
+  globalThis.fetch = async (_url, options) => { init = options; return Response.json({ task_id: "33333333-3333-4333-8333-333333333333" }); };
+  const context = { identityId: "11111111-1111-4111-8111-111111111111", householdId: "22222222-2222-4222-8222-222222222222" };
+  const response = await proxyRequest(
+    req("api/v1/household/tasks", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ title: "  Call office  ", missing_items: [" land record "], idempotency_key: "retry-1" }) }),
+    ["api","v1","household","tasks"],
+    { verifiedContext: context },
+  );
+  assert.equal(response.status, 200);
+  assert.deepEqual(JSON.parse(Buffer.from(init.body).toString("utf8")), { title: "Call office", missing_items: ["land record"], idempotency_key: "retry-1" });
+  assert.equal(new Headers(init.headers).get("X-Saathi-Verified-Household"), context.householdId);
+});
+
+test("task proxy rejects client-supplied household identity", async () => {
+  setup();
+  globalThis.fetch = async () => { throw Error("must not fetch"); };
+  const context = { identityId: "11111111-1111-4111-8111-111111111111", householdId: "22222222-2222-4222-8222-222222222222" };
+  const response = await proxyRequest(
+    req("api/v1/household/tasks", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ title: "Task", household_id: "44444444-4444-4444-8444-444444444444" }) }),
+    ["api","v1","household","tasks"],
+    { verifiedContext: context },
+  );
+  assert.equal(response.status, 400);
+});
+
+test("task status proxy allows only completed or cancelled transitions", async () => {
+  setup();
+  globalThis.fetch = async () => Response.json({ status: "completed" });
+  const context = { identityId: "11111111-1111-4111-8111-111111111111", householdId: "22222222-2222-4222-8222-222222222222" };
+  const response = await proxyRequest(
+    req("api/v1/household/tasks/status", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ task_id: "33333333-3333-4333-8333-333333333333", status: "pending" }) }),
+    ["api","v1","household","tasks","status"],
+    { verifiedContext: context },
+  );
+  assert.equal(response.status, 422);
+});
+
+
+test("household memory routes require verified identity context", async () => {
+  setup();
+  globalThis.fetch = async () => { throw Error("must not fetch"); };
+  const response = await proxyRequest(req("api/v1/household/memories"), ["api","v1","household","memories"]);
+  assert.equal(response.status, 401);
+});
+
+test("memory writes are bounded and only accept user-confirmed fields", async () => {
+  setup();
+  let init;
+  globalThis.fetch = async (_url, options) => { init = options; return Response.json({ memory_id: "33333333-3333-4333-8333-333333333333" }); };
+  const context = { identityId: "11111111-1111-4111-8111-111111111111", householdId: "22222222-2222-4222-8222-222222222222" };
+  const response = await proxyRequest(
+    req("api/v1/household/memories", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ memory_type: " preference ", key_name: " crop ", value_text: " wheat " }) }),
+    ["api","v1","household","memories"],
+    { verifiedContext: context },
+  );
+  assert.equal(response.status, 200);
+  assert.deepEqual(JSON.parse(Buffer.from(init.body).toString("utf8")), { memory_type: "preference", key_name: "crop", value_text: "wheat" });
+  assert.equal(new Headers(init.headers).get("X-Saathi-Verified-Household"), context.householdId);
+});
+
+test("memory delete accepts only a memory UUID", async () => {
+  setup();
+  globalThis.fetch = async () => { throw Error("must not fetch"); };
+  const context = { identityId: "11111111-1111-4111-8111-111111111111", householdId: "22222222-2222-4222-8222-222222222222" };
+  const response = await proxyRequest(
+    req("api/v1/household/memories/delete", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ memory_id: "not-a-uuid" }) }),
+    ["api","v1","household","memories","delete"],
+    { verifiedContext: context },
+  );
+  assert.equal(response.status, 422);
+});
