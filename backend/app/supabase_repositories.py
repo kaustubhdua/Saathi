@@ -270,6 +270,7 @@ class SupabaseTaskRepository(_SupabaseRepository):
         internal_id = str(row["id"])
         current = str(row.get("status") or "received")
         now = datetime.now(timezone.utc).isoformat()
+        effective = current if current in {"completed", "failed", "escalated"} else target
 
         if current not in {"completed", "failed", "escalated"}:
             if target in {"completed", "failed"}:
@@ -298,10 +299,10 @@ class SupabaseTaskRepository(_SupabaseRepository):
                 "call_id": internal_id,
                 "processing_status": "processed",
                 "processed_at": now,
-                "metadata": {"provider_call_id": provider_call_id, "provider_status": normalized},
+                "metadata": {"provider_call_id": provider_call_id, "provider_status": normalized, "applied_status": effective},
             },
         )
-        return target
+        return effective
 
 
 class SupabaseCallRepository(_SupabaseRepository):
