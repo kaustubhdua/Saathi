@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { proxyRequest, _resetRateLimitForTests } from "../lib/backend-proxy.mjs";
+import { proxyRequest, _resetRateLimitForTests, _rateLimitBucketCountForTests } from "../lib/backend-proxy.mjs";
 
 const originalFetch = globalThis.fetch;
 const originalEnv = { ...process.env };
@@ -23,3 +23,15 @@ test("rejects cross-origin mutation", async () => { setup(); const r = await pro
 test("does not follow backend redirects", async () => { setup(); globalThis.fetch = async () => new Response(null, { status: 302, headers: { location: "https://evil.example" } }); const r = await proxyRequest(req("health/live"), ["health","live"]); assert.equal(r.status, 502); });
 test("preserves upstream status and disables caching", async () => { setup(); globalThis.fetch = async () => Response.json({ detail: "offline" }, { status: 503 }); const r = await proxyRequest(req("health/ready"), ["health","ready"]); assert.equal(r.status, 503); assert.equal(r.headers.get("cache-control"), "no-store"); });
 test("enforces a per-instance request limit", async () => { setup(); globalThis.fetch = async () => Response.json({ status: "alive" }); let r; for (let i=0;i<31;i++) r = await proxyRequest(req("health/live", {}, "198.51.100.77"), ["health","live"]); assert.equal(r.status, 429); });
+
+
+test("rate-limit bucket storage stays bounded under high-cardinality IP input", async () => {
+  setup();
+  globalThis.fetch = async () => Response.json({ status: "alive" });
+  for (let i = 0; i < 2_500; i += 1) {
+    const ip = `198.18.${Math.floor(i / 256)}.${i % 256}`;
+    const response = await proxyRequest(req("health/live", {}, ip), ["health", "live"]);
+    assert.equal(response.status, 200);
+  }
+  assert.ok(_rateLimitBucketCountForTests() <= 2_000);
+});
