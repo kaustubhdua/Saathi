@@ -587,7 +587,7 @@ export default function Dashboard() {
                   {householdTasks.map((task) => (
                     <li className="task-row" key={task.task_id}>
                       <div><strong>{task.title}</strong>{task.missing_items.length > 0 && <p>Still needed: {task.missing_items.join(", ")}</p>}</div>
-                      <button type="button" className="voice-button" disabled={taskBusy} onClick={() => void updateHouseholdTaskStatus(task.task_id, "completed")}>Mark complete</button>
+                      <div className="task-row-actions"><button type="button" className="voice-button" disabled={taskBusy} onClick={() => void updateHouseholdTaskStatus(task.task_id, "completed")}>Mark complete</button><button type="button" className="voice-button" disabled={taskBusy} onClick={() => void updateHouseholdTaskStatus(task.task_id, "cancelled")}>Cancel task</button></div>
                     </li>
                   ))}
                 </ul>
