@@ -37,7 +37,7 @@ Last verified: 2026-10-15 UTC
 
 ## Candidate integration — household tasks and explicit memory
 
-- Task and memory API/UI changes from PRs #71/#72 have been ported onto the current authentication branch. The task/memory patches are included in the consolidated auth candidate; exact-head CI run #904 passed all five jobs on `46827771e5f2db7431ca66afda3bd227a25f68ea`. Task idempotency conflict queries are household-filtered, tenant-checked, and URL-encoded. This remains a draft branch, not main or production.
+- Task and memory API/UI changes from PRs #71/#72 are consolidated on this auth branch. Exact-head CI run #905 passed all five jobs on `07e3de78a3c57da400857cf0e0b75cb0af7b18d4`; follow-up security/UX fixes preserve anonymous general chat/voice without household context and require verified identity for household routes, and enforce JSON content types for all JSON proxy routes. Exact-head CI run #909 passed all five jobs on `9a93c7dd5f6082b74876e55bd4007c5c36b7b0ba`. This remains a draft branch, not main or production.
 - Task list/create/status routes use verified household context; idempotency-conflict recovery is additionally household-filtered and rejects mismatched rows. Automatic reminder dispatch and callback delivery remain disabled.
 - Memory list/write/delete routes require current persisted memory consent and explicit user input; automatic conversation extraction is not connected. Database trigger behavior and revocation races still require isolated live-database acceptance.
 
@@ -64,7 +64,7 @@ Dependency note: run #904's full-tree npm audit reports five high-severity advis
 
 ## Next actions
 
-1. Keep PR #68 draft until migration history, live Auth/SMS, household isolation and provider acceptance gates are satisfied; exact-head CI is green but is not production acceptance. Configure Supabase Phone Auth/SMS and server-only secrets, then test OTP, household PIN, task isolation and consent in an isolated environment.
+1. Keep PR #68 draft until migration history, live Auth/SMS, household isolation and provider acceptance gates are satisfied; exact-head CI run #909 is green but is not production acceptance. Configure Supabase Phone Auth/SMS and server-only secrets, then test OTP, household PIN, task isolation and consent in an isolated environment.
 2. Configure Supabase Phone Auth and SMS delivery, then verify OTP, session refresh, sign-out, first-household creation, phone-number recycling isolation and consent behavior against an isolated test household.
 3. Confirm the existing `saathi_memory_consent_locking` migration is present in each target environment, reconcile migration history, and verify concurrent memory write/revocation against an isolated database. Keep automatic extraction disabled.
 4. Keep PR #58 draft until migration history is reconciled across environments; do not apply live DDL before approval.
