@@ -60,7 +60,8 @@ test("production fails closed when shared rate-limit configuration is missing", 
   setup();
   delete process.env.UPSTASH_REDIS_REST_URL;
   let upstreamCalled = false;
-  const response = await proxyRequest(req("health/live"), ["health", "live"], { rateLimitFetchImpl: async () => { throw new Error("must not call limiter"); }, fetchImpl: async () => { upstreamCalled = true; return Response.json({ status: "alive" }); } });
+  globalThis.fetch = async () => { upstreamCalled = true; return Response.json({ status: "alive" }); };
+  const response = await proxyRequest(req("health/live"), ["health", "live"], { rateLimitFetchImpl: async () => { throw new Error("must not call limiter"); } });
   assert.equal(response.status, 503);
   assert.equal((await response.json()).detail, "shared_rate_limit_not_configured");
   assert.equal(upstreamCalled, false);
@@ -70,7 +71,8 @@ test("production rejects non-Upstash hosts and non-default ports", async () => {
   for (const url of ["https://redis.attacker.example", "https://saathi-test.upstash.io:8443"]) {
     setup(); process.env.UPSTASH_REDIS_REST_URL = url;
     let upstreamCalled = false;
-    const response = await proxyRequest(req("health/live"), ["health", "live"], { rateLimitFetchImpl: async () => { throw new Error("must not call limiter"); }, fetchImpl: async () => { upstreamCalled = true; return Response.json({ status: "alive" }); } });
+    globalThis.fetch = async () => { upstreamCalled = true; return Response.json({ status: "alive" }); };
+    const response = await proxyRequest(req("health/live"), ["health", "live"], { rateLimitFetchImpl: async () => { throw new Error("must not call limiter"); } });
     assert.equal(response.status, 503);
     assert.equal((await response.json()).detail, "shared_rate_limit_not_configured");
     assert.equal(upstreamCalled, false);
@@ -87,7 +89,8 @@ test("production fails closed on malformed trusted client IP", async () => {
 test("shared rate limiter outage fails closed before backend call", async () => {
   setup();
   let upstreamCalled = false;
-  const response = await proxyRequest(req("health/live"), ["health", "live"], { rateLimitFetchImpl: async () => new Response("unavailable", { status: 503 }), fetchImpl: async () => { upstreamCalled = true; return Response.json({ status: "alive" }); } });
+  globalThis.fetch = async () => { upstreamCalled = true; return Response.json({ status: "alive" }); };
+  const response = await proxyRequest(req("health/live"), ["health", "live"], { rateLimitFetchImpl: async () => new Response("unavailable", { status: 503 }) });
   assert.equal(response.status, 503);
   assert.equal((await response.json()).detail, "shared_rate_limit_unavailable");
   assert.equal(upstreamCalled, false);
