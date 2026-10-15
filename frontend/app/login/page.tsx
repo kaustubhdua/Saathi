@@ -26,7 +26,7 @@ export default function LoginPage() {
     if (body.mode !== "setup" && body.mode !== "verify") throw new Error("Household identity setup is unavailable.");
     setPinMode(body.mode);
     setNotice(body.mode === "setup"
-      ? "Create an eight-digit household PIN. Phone OTP alone is not enough to access household data."
+      ? "Create an eight-digit household PIN. Avoid repeated digits and sequential numbers; phone OTP alone is not enough to access household data."
       : "Enter your household PIN to unlock this household on this device.");
   }
 
