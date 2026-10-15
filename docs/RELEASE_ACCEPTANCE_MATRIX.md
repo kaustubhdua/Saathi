@@ -65,3 +65,9 @@ This is an evidence ledger, not a declaration that release gates have passed. Au
 ## Sprint 27 verification note — 2026-10-16 IST / 2026-10-15 UTC
 
 The demo telephony fail-closed change is committed on `fix/dashboard-fail-closed-agent-errors`. Exact-head run [#957](https://github.com/kaustubhdua/Saathi/actions/runs/38812480101) passed on code SHA `4f1133b3dcd94914a33ec2b73b40add64991143e`; follow-up exact-head run [#959](https://github.com/kaustubhdua/Saathi/actions/runs/38812734100) passed all five jobs on SHA `cff8b3ca9f41efcb6a0a7ad13ff2324763c300a2`. This establishes automated CI only, not real provider acceptance. The current documentation refresh requires another exact-head CI run. Do not mark the telephony gate complete until live provider acceptance and callback authentication have separate sandbox evidence.
+
+
+## Sprint note — voice upload boundary (2026-10-16 IST)
+
+- Code-level acceptance: supported MIME types are normalized for codec parameters; WAV/WebM magic bytes are checked after a bounded read; mismatches return 415 before provider invocation; regression tests cover spoofing.
+- Status: CODE + CI PENDING. This is not a live browser/provider test and does not establish full media-parser safety. Validate actual browser-produced WebM/WAV fixtures on supported mobile browsers before release.
