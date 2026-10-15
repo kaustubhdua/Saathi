@@ -48,7 +48,6 @@ test("proxy resolves household context server-side and protects consent routes",
   assert.match(proxyRoute, /requiresUserAction \? 401 : 503/);
 });
 
-
 test("household PIN is separate, rate-limited and server-keyed", () => {
   assert.match(pinRoute, /isAuthRateLimited\(request, user\.phone, "pin"\)/);
   assert.match(pinRoute, /isStrongHouseholdPin\(body\.pin\)/);
@@ -62,26 +61,15 @@ test("household PIN is separate, rate-limited and server-keyed", () => {
   assert.match(signoutRoute, /clearHouseholdContextCookie/);
 });
 
-test("proposed membership migration denies browser access and never trusts phone alone", () => {
+test("proposed membership migration denies browser access and remains syntactically complete", () => {
   assert.match(membershipMigration, /auth_user_id uuid NOT NULL UNIQUE REFERENCES auth\.users\(id\)/);
-  assert.ok(membershipMigration.includes("pin_hash text NOT NULL CHECK (pin_hash ~ '^[0-9a-f]{64}
+  assert.ok(membershipMigration.includes("pin_hash text NOT NULL CHECK (pin_hash ~ '^[0-9a-f]{64}$')"));
+  assert.ok(membershipMigration.includes("verified_phone text NOT NULL CHECK"));
+  assert.ok(membershipMigration.includes("[0-9]{7,14}$')"));
   assert.match(membershipMigration, /ENABLE ROW LEVEL SECURITY/);
   assert.match(membershipMigration, /REVOKE ALL ON TABLE public\.saathi_household_memberships FROM PUBLIC, anon, authenticated/);
   assert.match(membershipMigration, /GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public\.saathi_household_memberships TO service_role/);
   assert.match(membershipMigration, /PROPOSED ONLY/);
-});
-)"));
-  assert.ok(membershipMigration.includes("verified_phone text NOT NULL CHECK (verified_phone ~ '^\\\\+[1-9][0-9]{7,14}
-  assert.match(membershipMigration, /ENABLE ROW LEVEL SECURITY/);
-  assert.match(membershipMigration, /REVOKE ALL ON TABLE public\.saathi_household_memberships FROM PUBLIC, anon, authenticated/);
-  assert.match(membershipMigration, /GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public\.saathi_household_memberships TO service_role/);
-  assert.match(membershipMigration, /PROPOSED ONLY/);
-});
-)"));
-  assert.equal(membershipMigration.trim().endsWith(';'), true);
+  assert.equal(membershipMigration.trim().endsWith(";"), true);
   assert.equal((membershipMigration.match(/CREATE INDEX/g) || []).length, 1);
-  assert.match(membershipMigration, /ENABLE ROW LEVEL SECURITY/);
-  assert.match(membershipMigration, /REVOKE ALL ON TABLE public\.saathi_household_memberships FROM PUBLIC, anon, authenticated/);
-  assert.match(membershipMigration, /GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public\.saathi_household_memberships TO service_role/);
-  assert.match(membershipMigration, /PROPOSED ONLY/);
 });
