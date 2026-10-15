@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from types import SimpleNamespace
 
 from fastapi.testclient import TestClient
@@ -76,7 +77,7 @@ def test_memory_write_uses_verified_household_and_user_confirmed_source(monkeypa
     captured = {}
 
     async def get(self, *, household_id, consent_type):
-        return Consent(household_id=household_id, consent_type=consent_type, granted=True, recorded_at=__import__("datetime").datetime.now(__import__("datetime").timezone.utc))
+        return Consent(household_id=household_id, consent_type=consent_type, granted=True, recorded_at=datetime.now(timezone.utc))
 
     async def save(self, **kwargs):
         captured.update(kwargs)
