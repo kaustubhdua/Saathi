@@ -248,3 +248,17 @@ test("memory delete accepts only a memory UUID", async () => {
   );
   assert.equal(response.status, 422);
 });
+
+
+test("household JSON routes reject non-JSON content types", async () => {
+  setup();
+  globalThis.fetch = async () => { throw Error("must not fetch"); };
+  const context = { identityId: "11111111-1111-4111-8111-111111111111", householdId: "22222222-2222-4222-8222-222222222222" };
+  const response = await proxyRequest(
+    req("api/v1/household/tasks", { method: "POST", headers: { "content-type": "text/plain" }, body: '{"title":"Task"}' }),
+    ["api","v1","household","tasks"],
+    { verifiedContext: context },
+  );
+  assert.equal(response.status, 415);
+  assert.equal((await response.json()).detail, "application_json_required");
+});
