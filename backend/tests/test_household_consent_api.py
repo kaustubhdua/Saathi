@@ -25,8 +25,8 @@ def headers():
 def test_consent_status_requires_verified_household_context(monkeypatch):
     configure_production(monkeypatch)
     response = TestClient(app).get("/api/v1/household/consent", headers={"X-Saathi-API-Key": "server-token"})
-    assert response.status_code == 403
-    assert response.json()["detail"] == "verified_household_identity_required"
+    assert response.status_code == 401
+    assert response.json()["detail"] == "verified_phone_identity_required"
 
 
 def test_consent_status_returns_purpose_specific_grants(monkeypatch):
