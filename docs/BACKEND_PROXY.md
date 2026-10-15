@@ -11,13 +11,16 @@ The dashboard uses same-origin `/backend/*` routes. The Next.js Node route forwa
 
 ## Boundaries
 
-- Only `GET /health/ready`, `GET /health/live`, `POST /api/v1/agent` and `POST /api/v1/voice/turn` are exposed.
+- Only `GET /health/ready`, `GET /health/live`, `POST /api/v1/agent`, `POST /api/v1/voice/turn`, and authenticated `GET/POST /api/v1/household/consent` are exposed.
 - The proxy rejects browser-supplied household identifiers, checks mutation origins when present, bounds request-body size and read time, rejects redirects, uses no-store responses, and includes a best-effort per-process rate limit.
 - Text requests are limited to 64 KiB; voice uploads are limited to 10 MiB. Upstream calls have bounded timeouts.
 - Production requires `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`, and `SAATHI_TRUSTED_CLIENT_IP_HEADER`. The configured URL must be an HTTPS `*.upstash.io` origin with no custom port, credentials, path, query or fragment. The chosen header must be a single IP address and must be documented/configured by the hosting platform to be overwritten; the app does not trust `X-Forwarded-For` chains by default.
 - Production uses an atomic fixed-window Redis Lua counter. Its key is an HMAC-SHA-256 digest of the method/route/IP tuple, not the raw IP. Missing/malformed configuration, unknown trusted IPs, Redis errors, and invalid Redis responses fail closed before the backend is called. A Redis outage therefore affects availability by design; configure and test the shared store before enabling production traffic.
 - Non-production uses a process-local limiter for development/testing only. It validates IP literals and caps bucket storage at 2,000 entries under high-cardinality traffic. This local fallback is not distributed protection and must never be treated as the production abuse boundary.
-- This proxy does not implement login, verified household identity, consent, persistent memory, task APIs or outbound calls. Those routes remain unavailable until end-to-end authorization is implemented.
+- Phone OTP login uses Supabase Auth SSR cookies. For signed-in users, the server verifies the Supabase user, requires a confirmed E.164 phone, then resolves the household through `saathi_household_memberships.auth_user_id`. A phone number alone never grants access, avoiding takeover if a number is recycled. The membership migration remains proposed outside active migration discovery until PR #58 is reconciled.
+- The proxy injects `X-Saathi-Verified-Identity` and `X-Saathi-Verified-Household` only after server-side verification; the backend validates both UUIDs and rejects client-supplied household IDs.
+- The consent API exposes only memory and outbound-call purpose booleans. Both start false; revoking memory relies on the existing database trigger to purge stored memory.
+- Task APIs and outbound-call operations remain unavailable through the public proxy. Phone OTP and consent require Supabase Auth/SMS and server-only secrets to be configured and tested.
 - Production readiness reports `not_ready` when required API operator authentication is missing.
 
 ## Verification
@@ -32,3 +35,11 @@ The backend rejects a client-supplied household identifier on text and voice int
 ## Shared limiter verification
 
 The automated proxy tests stub Redis and the API separately. They cover missing configuration, rejected hosts/ports, malformed client IPs, Redis outage/invalid counter response, and the over-limit path. They do not prove that a production Upstash database exists, that the hosting proxy overwrites the selected header, or that live traffic is correctly limited. Verify those conditions in the deployment environment before switching out of demo mode.
+
+
+## Additional server-only configuration
+
+- `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (or the existing public anon key) are public Auth client configuration.
+- `SUPABASE_URL` and `SUPABASE_SECRET_KEY` are server-only. The secret key must never use a `NEXT_PUBLIC_*` name and must never be serialized to a browser response.
+- Enable Supabase Phone Auth and configure SMS delivery in the project dashboard. This repository cannot provision the provider or prove delivery.
+- OTP send/verify limits in this code are process-local defense in depth. Supabase Auth rate limits and an edge/shared limiter remain required.
