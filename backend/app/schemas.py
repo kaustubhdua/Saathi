@@ -65,6 +65,20 @@ class HouseholdTaskStatusRequest(BaseModel):
     status: Literal["completed", "cancelled"]
 
 
+class HouseholdMemoryWriteRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    memory_type: str = Field(min_length=1, max_length=80)
+    key_name: str = Field(min_length=1, max_length=120)
+    value_text: str = Field(min_length=1, max_length=2000)
+
+
+class HouseholdMemoryDeleteRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    memory_id: str = Field(min_length=36, max_length=36)
+
+
 class AgentRequest(ConversationRequest):
     pass
 
