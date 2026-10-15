@@ -79,6 +79,18 @@ class HouseholdMemoryDeleteRequest(BaseModel):
     memory_id: str = Field(min_length=36, max_length=36)
 
 
+class HouseholdHelpCaseCreateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    summary: str = Field(min_length=1, max_length=2000)
+
+
+class HouseholdHelpCaseCloseRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    case_id: str = Field(min_length=36, max_length=36)
+
+
 class AgentRequest(ConversationRequest):
     pass
 
