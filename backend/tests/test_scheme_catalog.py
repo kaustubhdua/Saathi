@@ -9,7 +9,7 @@ def test_catalog_has_unique_stable_ids_and_official_sources():
     for item in schemes:
         assert item.source_url.startswith("https://")
         assert item.application_url.startswith("https://")
-        assert item.source_checked_on == "2026-10-16"
+        assert item.source_checked_on == "2026-10-15"
         assert item.effective_from
         assert item.effective_date_note
         assert item.review_note
