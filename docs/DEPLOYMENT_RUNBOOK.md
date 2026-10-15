@@ -24,7 +24,7 @@ This is the supported first deployment path for Saathi. It deliberately starts i
 
 Do not set real API keys in GitHub files, commit history, or client-side `NEXT_PUBLIC_*` variables.
 
-## 2. Deploy the Next.js frontend on Vercel
+## 2. Deploy the Next.js frontend on Vercel (after the deployment freeze and release gates)
 
 1. Import `kaustubhdua/Saathi` into Vercel.
 2. Set the project root directory to `frontend`.
@@ -34,6 +34,8 @@ Do not set real API keys in GitHub files, commit history, or client-side `NEXT_P
 6. Keep `DEMO_MODE=true` until proxy authentication and provider checks pass. The browser must call only the same-origin `/backend/*` proxy.
 7. Deploy. Add the final Vercel origin to Render `CORS_ORIGINS` only if another trusted caller requires cross-origin access.
 8. Open the deployed site and test the landing page, dashboard, a text request, mobile layout, and provider/capability labels.
+
+**Deployment freeze:** do not configure or deploy Vercel before 24 October 2026. After that date, proceed only when the release acceptance matrix's P0 gates and exact-commit CI are satisfied.
 
 The browser does not need a direct API URL; requests go through the same-origin `/backend/*` proxy. Provider credentials and the backend API token must remain server-side.
 
@@ -78,13 +80,13 @@ Then:
 
 ```bash
 cd frontend
-npm install
+npm ci
 npm run lint
 npx tsc --noEmit
 npm run build
 ```
 
-The repository currently does not include `frontend/package-lock.json`, so the current workflow uses `npm install` rather than `npm ci`. For reproducible production builds, generate and commit a reviewed lockfile, then switch CI and this runbook to `npm ci`. If a command fails, fix the failure before calling the release ready. The hosted provider tests still need to be run against the actual deployed URLs. The proxy regression suite runs in CI but does not replace browser end-to-end or live-provider verification.
+The repository now includes a reviewed `frontend/package-lock.json`; use `npm ci` for reproducible installation. CI already uses `npm ci`. If it fails, fix the failure before calling the release ready. The hosted provider tests still need to be run against the actual deployed URLs. The proxy regression suite runs in CI but does not replace browser end-to-end or live-provider verification.
 
 ## 6. Do not announce production readiness until these gates pass
 
