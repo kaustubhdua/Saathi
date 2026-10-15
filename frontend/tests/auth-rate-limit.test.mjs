@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { isAuthRateLimited, _resetAuthRateLimitForTests } from "../lib/auth-rate-limit.mjs";
+import { isAuthRateLimited, _resetAuthRateLimitForTests, _authRateLimitBucketCountForTests } from "../lib/auth-rate-limit.mjs";
 
 const originalEnv = { ...process.env };
 const originalFetch = globalThis.fetch;
@@ -97,4 +97,15 @@ test("production rejects unconfigured trusted IP header before any Upstash reque
   const request = new Request("https://saathi.example.com/api/auth/otp", { headers: { "x-real-ip": "192.0.2.27" } });
   await assert.rejects(isAuthRateLimited(request, "+919876543216", "otp"), /trusted_client_ip_not_configured/);
   assert.equal(calls, 0);
+});
+
+
+test("development rate-limit bucket storage remains bounded under high-cardinality traffic", async () => {
+  process.env.NODE_ENV = "development";
+  for (let i = 0; i < 5_100; i += 1) {
+    const ip = `198.18.${Math.floor(i / 256)}.${i % 256}`;
+    const request = new Request("https://saathi.example.com/api/auth/otp", { headers: { "x-real-ip": ip } });
+    await isAuthRateLimited(request, "+919876543217", "test");
+  }
+  assert.ok(_authRateLimitBucketCountForTests() <= 5_000);
 });
