@@ -247,6 +247,11 @@ class SupabaseTaskRepository(_SupabaseRepository):
             "no-answer": "failed",
             "canceled": "failed",
             "cancelled": "failed",
+            "call.completed": "completed",
+            "call.failed": "failed",
+            "call.busy": "failed",
+            "call.no-answer": "failed",
+            "call.in-progress": "in_progress",
         }
         target = mapping.get(normalized)
         if target is None:
