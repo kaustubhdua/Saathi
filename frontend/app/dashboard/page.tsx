@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "motion/react";
 import {
   AlertTriangle, ArrowLeft, ArrowUpRight, Bot, CheckCircle2,
@@ -15,6 +15,7 @@ type Source = { name: string; url: string; retrieved_at?: string | null; freshne
 type Evidence = { name: string; url: string; retrieved_at?: string | null; freshness_note?: string | null; freshness_status?: string | null };
 type ReadyCapabilities = { core_agent?: boolean; telephony?: boolean; telephony_realtime?: boolean; reasoning?: boolean; mandi?: boolean; speech?: boolean; weather?: boolean; documents?: boolean };
 type ConsentSnapshot = { memory: { granted: boolean; recorded_at: string | null }; outbound_calls: { granted: boolean; recorded_at: string | null } };
+type HouseholdTask = { task_id: string; title: string; status: "pending" | "completed" | "cancelled" | "escalated"; missing_items: string[]; scheduled_callback: string | null };
 
 type BrowserSpeechRecognition = {
   lang: string;
@@ -82,6 +83,11 @@ export default function Dashboard() {
   const [consentBusy, setConsentBusy] = useState(false);
   const [consentMessage, setConsentMessage] = useState<string | null>(null);
   const [consentError, setConsentError] = useState<string | null>(null);
+  const [householdTasks, setHouseholdTasks] = useState<HouseholdTask[] | null>(null);
+  const [taskTitle, setTaskTitle] = useState("");
+  const [taskBusy, setTaskBusy] = useState(false);
+  const [taskError, setTaskError] = useState<string | null>(null);
+  const [taskMessage, setTaskMessage] = useState<string | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -128,6 +134,22 @@ export default function Dashboard() {
     return () => controller.abort();
   }, [authStatus.householdReady]);
 
+  useEffect(() => {
+    if (!authStatus.householdReady) return;
+    const controller = new AbortController();
+    fetch("/backend/api/v1/household/tasks", { signal: controller.signal, cache: "no-store" })
+      .then(async (response) => {
+        const body = await response.json();
+        if (!response.ok || !Array.isArray(body.tasks)) throw new Error(body.detail || "Saved tasks are unavailable.");
+        setHouseholdTasks(body.tasks);
+        setTaskError(null);
+      })
+      .catch((cause) => {
+        if (!controller.signal.aborted) setTaskError(cause instanceof Error ? cause.message : "Saved tasks are unavailable.");
+      });
+    return () => controller.abort();
+  }, [authStatus.householdReady]);
+
   const updateConsent = async (purpose: "memory" | "outbound_calls", granted: boolean) => {
     setConsentBusy(true);
     setConsentError(null);
@@ -163,8 +185,59 @@ export default function Dashboard() {
       setAuthStatus((current) => ({ ...current, loading: false, phoneSuffix: null, householdReady: false }));
       setConsentStatus(null);
       setConsentMessage(null);
+      setHouseholdTasks(null);
+      setTaskTitle("");
+      setTaskMessage(null);
+      setTaskError(null);
     } catch (cause) {
       setConsentError(cause instanceof Error ? cause.message : "Sign out could not be completed. Please retry.");
+    }
+  };
+
+  const createHouseholdTask = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const title = taskTitle.trim();
+    if (!title || !authStatus.householdReady) return;
+    setTaskBusy(true);
+    setTaskError(null);
+    setTaskMessage(null);
+    try {
+      const idempotencyKey = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function" ? crypto.randomUUID() : undefined;
+      const response = await fetch("/backend/api/v1/household/tasks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title, ...(idempotencyKey ? { idempotency_key: idempotencyKey } : {}) }),
+      });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.detail || "Task could not be saved.");
+      setHouseholdTasks((current) => [body as HouseholdTask, ...(current || []).filter((item) => item.task_id !== body.task_id)]);
+      setTaskTitle("");
+      setTaskMessage("Task saved. Automatic reminders and callback delivery are not enabled yet.");
+    } catch (cause) {
+      setTaskError(cause instanceof Error ? cause.message : "Task could not be saved.");
+    } finally {
+      setTaskBusy(false);
+    }
+  };
+
+  const updateHouseholdTaskStatus = async (taskId: string, status: "completed" | "cancelled") => {
+    setTaskBusy(true);
+    setTaskError(null);
+    setTaskMessage(null);
+    try {
+      const response = await fetch("/backend/api/v1/household/tasks/status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ task_id: taskId, status }),
+      });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.detail || "Task status could not be updated.");
+      setHouseholdTasks((current) => (current || []).filter((item) => item.task_id !== taskId));
+      setTaskMessage(status === "completed" ? "Task marked complete." : "Task cancelled.");
+    } catch (cause) {
+      setTaskError(cause instanceof Error ? cause.message : "Task status could not be updated.");
+    } finally {
+      setTaskBusy(false);
     }
   };
 
@@ -491,6 +564,38 @@ export default function Dashboard() {
           )}
           {consentMessage && <p role="status" aria-live="polite">{consentMessage}</p>}
           {consentError && <p className="voice-error" role="alert" aria-live="assertive">{consentError}</p>}
+        </section>
+
+        <section className="consent-card" aria-labelledby="tasks-title">
+          <div className="context-title"><div><span className="panel-kicker">HOUSEHOLD TASKS</span><h3 id="tasks-title">Keep track of the next step.</h3></div><CheckCircle2 size={18} /></div>
+          <p className="consent-intro">Tasks are saved to your verified household and can be marked complete or cancelled. Scheduled reminders and automatic follow-up delivery are not enabled yet.</p>
+          {!authStatus.phoneSuffix ? (
+            <div className="consent-note"><ShieldCheck size={14} /> {authStatus.configured ? "Sign in with a verified phone to manage household tasks." : "Phone sign-in is not configured in this deployment."} {authStatus.configured && <Link href="/login">Sign in with phone</Link>}</div>
+          ) : !authStatus.householdReady ? (
+            <div className="consent-note"><ShieldCheck size={14} /> Verify your household PIN before viewing or changing tasks. <Link href="/login">Verify household PIN</Link></div>
+          ) : (
+            <>
+              <form className="task-form" onSubmit={createHouseholdTask}>
+                <label htmlFor="household-task-title">New task</label>
+                <div className="task-form-row">
+                  <input id="household-task-title" value={taskTitle} onChange={(event) => setTaskTitle(event.target.value)} maxLength={300} placeholder="e.g. Call the agriculture office" required />
+                  <button type="submit" className="run-button" disabled={taskBusy || !taskTitle.trim()}>{taskBusy ? "Saving…" : "Save task"}</button>
+                </div>
+              </form>
+              {householdTasks === null ? <p className="consent-intro">Loading saved tasks…</p> : householdTasks.length === 0 ? <div className="consent-note">No open tasks yet. Add a task above to keep it with this household.</div> : (
+                <ul className="task-list">
+                  {householdTasks.map((task) => (
+                    <li className="task-row" key={task.task_id}>
+                      <div><strong>{task.title}</strong>{task.missing_items.length > 0 && <p>Still needed: {task.missing_items.join(", ")}</p>}</div>
+                      <button type="button" className="voice-button" disabled={taskBusy} onClick={() => void updateHouseholdTaskStatus(task.task_id, "completed")}>Mark complete</button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </>
+          )}
+          {taskMessage && <p role="status" aria-live="polite">{taskMessage}</p>}
+          {taskError && <p className="voice-error" role="alert" aria-live="assertive">{taskError}</p>}
         </section>
 
         <section className="fallback-card" aria-labelledby="fallback-title">
