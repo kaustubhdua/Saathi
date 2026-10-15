@@ -59,3 +59,42 @@ test("production OTP limits use atomic shared counters and hash identity keys", 
   assert.ok(calls.every((call) => String(call.command[3]).startsWith("saathi:auth:v1:")));
   assert.ok(calls.every((call) => !JSON.stringify(call.command).includes("+919876543213")));
 });
+
+
+test("production rejects missing trusted client IP before any Upstash request", async () => {
+  process.env.NODE_ENV = "production";
+  process.env.SAATHI_TRUSTED_CLIENT_IP_HEADER = "x-real-ip";
+  process.env.UPSTASH_REDIS_REST_URL = "https://saathi-test.upstash.io";
+  process.env.UPSTASH_REDIS_REST_TOKEN = "test-only-token";
+  let calls = 0;
+  globalThis.fetch = async () => { calls += 1; return Response.json({ result: 1 }); };
+  const request = new Request("https://saathi.example.com/api/auth/otp");
+  await assert.rejects(isAuthRateLimited(request, "+919876543214", "otp"), /trusted_client_ip_invalid/);
+  assert.equal(calls, 0);
+});
+
+test("production rejects malformed and comma-separated trusted client IP before any Upstash request", async () => {
+  process.env.NODE_ENV = "production";
+  process.env.SAATHI_TRUSTED_CLIENT_IP_HEADER = "x-real-ip";
+  process.env.UPSTASH_REDIS_REST_URL = "https://saathi-test.upstash.io";
+  process.env.UPSTASH_REDIS_REST_TOKEN = "test-only-token";
+  let calls = 0;
+  globalThis.fetch = async () => { calls += 1; return Response.json({ result: 1 }); };
+  for (const ip of ["not-an-ip", "192.0.2.1, 192.0.2.2", "192.0.2.1:443", "[2001:db8::1], 2001:db8::2"]) {
+    const request = new Request("https://saathi.example.com/api/auth/otp", { headers: { "x-real-ip": ip } });
+    await assert.rejects(isAuthRateLimited(request, "+919876543215", "otp"), /trusted_client_ip_invalid/);
+  }
+  assert.equal(calls, 0);
+});
+
+test("production rejects unconfigured trusted IP header before any Upstash request", async () => {
+  process.env.NODE_ENV = "production";
+  delete process.env.SAATHI_TRUSTED_CLIENT_IP_HEADER;
+  process.env.UPSTASH_REDIS_REST_URL = "https://saathi-test.upstash.io";
+  process.env.UPSTASH_REDIS_REST_TOKEN = "test-only-token";
+  let calls = 0;
+  globalThis.fetch = async () => { calls += 1; return Response.json({ result: 1 }); };
+  const request = new Request("https://saathi.example.com/api/auth/otp", { headers: { "x-real-ip": "192.0.2.27" } });
+  await assert.rejects(isAuthRateLimited(request, "+919876543216", "otp"), /trusted_client_ip_not_configured/);
+  assert.equal(calls, 0);
+});
