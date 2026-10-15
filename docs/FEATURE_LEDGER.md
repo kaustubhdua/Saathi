@@ -1,6 +1,6 @@
 # Saathi Release Feature Ledger
 
-Last verified: 2026-10-15 UTC
+Last verified: 2026-10-16 UTC
 
 - Main baseline after PR #64: `fb795e62f5dbaaf6d57ef150e2877382c8a32655`.
 - P0/P1 proxy and freshness: [PR #57](https://github.com/kaustubhdua/Saathi/pull/57), merged.
@@ -66,3 +66,12 @@ Last verified: 2026-10-15 UTC
 - Production: not deployed; deployed SHA and real backend journey remain unverified. No database or provider configuration changed.
 
 - CI verification update (2026-10-16): GitHub Actions run [#953](https://github.com/kaustubhdua/Saathi/actions/runs/38804190786) completed successfully on PR head `5f58b25d84296c059aab5fcb54f5b516a2036b5e`. All five jobs passed: backend pytest/API smoke, frontend `npm ci`/lint/regression tests/TypeScript/build/dashboard smoke, Streamlit smoke, dependency audit, and Docker build. This verifies the candidate code at that SHA, not production behavior. Any subsequent commit requires a fresh exact-head CI result.
+
+
+## Engineering sprint — demo telephony truthfulness (2026-10-16)
+
+- Changed `POST /api/v1/calls` in non-production demo mode to return HTTP 503 with `telephony_unavailable_in_demo_mode`. It no longer returns the synthetic `demo-call-accepted` ID or a success-looking status.
+- The demo path emits only a capability-unavailable event; a regression test patches the Exotel adapter to fail if invoked and verifies the response contains no call ID or acceptance claim.
+- Code and test committed to branch `fix/dashboard-fail-closed-agent-errors`; this is an unverified candidate until exact-head CI completes.
+- Previous exact-head CI run [#954](https://github.com/kaustubhdua/Saathi/actions/runs/38804471043) passed all five jobs on the prior candidate SHA `0ca3948222df74b405b286ba97bcef3e120edb78`; it does not verify this subsequent backend patch.
+- Demo phone calling is **UNAVAILABLE**. Production telephony remains **NOT VERIFIED** pending real Exotel sandbox acceptance, persisted purpose-specific consent, and a verified callback-authentication contract. No live call, database mutation, provider activation, or deployment was performed.
