@@ -130,6 +130,7 @@ class DataGovMandiTool:
                         url=url,
                         retrieved_at=datetime.now(timezone.utc),
                         freshness_note="Government dataset queried; no matching record returned.",
+                        freshness_status="unknown",
                     ),
                 )
 
@@ -191,6 +192,7 @@ class DataGovMandiTool:
                         url=url,
                         retrieved_at=datetime.now(timezone.utc),
                         freshness_note="Government dataset returned records, but none matched the requested commodity/location strongly enough.",
+                        freshness_status="unknown",
                     ),
                 )
 
@@ -271,6 +273,7 @@ class DataGovMandiTool:
                         url=url,
                         retrieved_at=datetime.now(timezone.utc),
                         freshness_note="Government dataset returned a record without a usable modal price.",
+                        freshness_status="unknown",
                     ),
                 )
 
