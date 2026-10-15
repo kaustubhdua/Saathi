@@ -61,7 +61,7 @@ Last verified: 2026-10-15 UTC
 
 1. Keep PR #68 draft until the latest exact-head CI is green. Configure Supabase Phone Auth/SMS and server-only secrets, then test OTP, household PIN, task isolation and consent in an isolated environment.
 2. Configure Supabase Phone Auth and SMS delivery, then verify OTP, session refresh, sign-out, first-household creation, phone-number recycling isolation and consent behavior against an isolated test household.
-3. Review the proposed row-locking consent-trigger migration, reconcile migration history, then verify concurrent memory write/revocation against an isolated database. Keep automatic extraction disabled.
+3. Confirm the existing `saathi_memory_consent_locking` migration is present in each target environment, reconcile migration history, and verify concurrent memory write/revocation against an isolated database. Keep automatic extraction disabled.
 4. Keep PR #58 draft until migration history is reconciled across environments; do not apply live DDL before approval.
 5. Configure/test Upstash and the hosting platform's trusted IP header before enabling production API traffic.
 6. Test real providers with authorized credentials and attach redacted evidence. Keep phone AI unavailable until callback signature verification is proven.
