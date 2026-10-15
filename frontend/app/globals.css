@@ -102,3 +102,21 @@ button,a{touch-action:manipulation}
 .task-row-actions{display:flex;flex-wrap:wrap;gap:8px;flex-shrink:0}
 .task-row-actions button{flex-shrink:0}
 @media(max-width:640px){.task-form-row{flex-direction:column}.task-row{align-items:flex-start;flex-direction:column}.task-row-actions{width:100%}.task-row-actions button{flex:1}}
+
+
+/* Explicit household memory controls */
+.memory-form{display:grid;gap:10px;margin:18px 0}
+.memory-form label{display:block;margin-bottom:6px;font-size:12px;font-weight:750;color:#183d32}
+.memory-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.memory-form input,.memory-form textarea{width:100%;min-width:0;padding:10px 12px;border:1px solid #cbd6ca;border-radius:9px;background:#fff;color:#183d32;font:inherit}
+.memory-form input{min-height:42px}
+.memory-form textarea{resize:vertical;line-height:1.55}
+.memory-form input:focus-visible,.memory-form textarea:focus-visible{outline:3px solid #d9a64b;outline-offset:3px}
+.memory-list{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.memory-row{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:14px;border:1px solid #dce3da;border-radius:11px;background:#fff}
+.memory-row>div{min-width:0;flex:1}
+.memory-row strong{display:block;margin-top:7px;color:#183d32;font-size:13px;overflow-wrap:anywhere}
+.memory-row p{margin:6px 0;color:#4e5d52;font-size:13px;line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere}
+.memory-row small{color:#69766d;font-size:11px}
+.memory-row button{flex-shrink:0}
+@media(max-width:640px){.memory-form-grid{grid-template-columns:1fr}.memory-row{flex-direction:column}.memory-row button{width:100%}}
