@@ -8,7 +8,7 @@ Last verified: 2026-10-15 UTC
 - Telephony callback lifecycle and live-call safety gate: [PR #61](https://github.com/kaustubhdua/Saathi/pull/61), merged.
 - Dashboard keyboard accessibility and truthful status labels: [PR #63](https://github.com/kaustubhdua/Saathi/pull/63), merged.
 - Shared production rate limiting: [PR #64](https://github.com/kaustubhdua/Saathi/pull/64), merged; production requires configured Upstash Redis and a trusted single-IP header.
-- Phone OTP, household PIN, purpose-specific consent, household tasks and explicit memory: [PR #68](https://github.com/kaustubhdua/Saathi/pull/68), draft. Exact-head CI run #874 passed all five jobs on `6dfe25d210cade46c47b738366f9b8f5be836527`; a new run is pending for the consent-serialization migration and regression test. Live Auth/SMS, migration and provider gates remain.
+- Phone OTP, household PIN, purpose-specific consent, household tasks and explicit memory: [PR #68](https://github.com/kaustubhdua/Saathi/pull/68), draft. Exact-head CI run #886 passed all five jobs on `edc29b1a7bcbff78f0e86e584ff688911fff7dd2`, including the active memory-consent lock/trigger regression test. Live Auth/SMS, migration-history and provider gates remain.
 - Migration quarantine/index proposal: [PR #58](https://github.com/kaustubhdua/Saathi/pull/58), draft; do not merge until all environments' migration histories are reconciled.
 - [Release acceptance matrix](RELEASE_ACCEPTANCE_MATRIX.md)
 - [Provider verification plan](PROVIDER_VERIFICATION.md)
