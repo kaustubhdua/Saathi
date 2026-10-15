@@ -146,8 +146,9 @@ def _source(outcome):
         return {
             "name": outcome.result.source.name,
             "url": outcome.result.source.url,
-            "retrieved_at": outcome.result.source.retrieved_at.isoformat(),
+            "retrieved_at": outcome.result.source.retrieved_at.isoformat() if outcome.result.source.retrieved_at else None,
             "freshness_note": outcome.result.source.freshness_note,
+            "freshness_status": outcome.result.source.freshness_status,
         }
     return None
 
@@ -158,8 +159,9 @@ def _sources(outcome):
             items.append({
                 "name": result.source.name,
                 "url": result.source.url,
-                "retrieved_at": result.source.retrieved_at.isoformat(),
+                "retrieved_at": result.source.retrieved_at.isoformat() if result.source.retrieved_at else None,
                 "freshness_note": result.source.freshness_note,
+                "freshness_status": result.source.freshness_status,
             })
     return items
 
