@@ -21,7 +21,9 @@ test("household binding requires confirmed E.164 phone and server-only secret", 
   assert.match(identity, /phone_confirmed_at/);
   assert.match(identity, /E164/);
   assert.match(identity, /SUPABASE_SECRET_KEY/);
-  assert.match(identity, /phone_number/);
+  assert.match(identity, /saathi_household_memberships/);
+  assert.match(identity, /auth_user_id/);
+  assert.match(identity, /phoneAlreadyAssigned/);
   assert.match(identity, /memory_consent: false/);
   assert.match(identity, /outbound_call_consent: false/);
   assert.doesNotMatch(identity, /NEXT_PUBLIC_SUPABASE_SECRET_KEY/);
