@@ -47,15 +47,25 @@ def test_demo_outbound_call_is_unavailable_and_never_calls_provider(monkeypatch)
         raise AssertionError("demo mode must never call Exotel")
 
     monkeypatch.setattr("app.main.ExotelTelephonyProvider.place_call", unexpected_provider_call)
-    response = TestClient(app).post(
-        "/api/v1/calls",
-        json={"to": "+919999999999", "callback_url": "https://example.test/callback", "consent": True},
-    )
-    assert response.status_code == 503
-    body = response.json()
-    assert body["detail"] == "telephony_unavailable_in_demo_mode"
-    assert "call_id" not in body
-    assert "accepted" not in str(body).casefold()
+    monkeypatch.setattr("app.main.ExotelTelephonyProvider.place_voice_ai_call", unexpected_provider_call)
+    client = TestClient(app)
+
+    # Both regular and realtime requests must remain explicitly unavailable.
+    for realtime in (False, True):
+        response = client.post(
+            "/api/v1/calls",
+            json={
+                "to": "+919999999999",
+                "callback_url": "https://example.test/callback",
+                "consent": True,
+                "realtime_voice_ai": realtime,
+            },
+        )
+        assert response.status_code == 503
+        body = response.json()
+        assert body["detail"] == "telephony_unavailable_in_demo_mode"
+        assert "call_id" not in body
+        assert "accepted" not in str(body).casefold()
 
 
 def test_live_call_fails_closed_without_recorded_outbound_consent(monkeypatch):
