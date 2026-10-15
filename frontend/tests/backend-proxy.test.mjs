@@ -248,3 +248,37 @@ test("memory delete accepts only a memory UUID", async () => {
   );
   assert.equal(response.status, 422);
 });
+
+
+test("human-help routes require verified household context", async () => {
+  setup();
+  globalThis.fetch = async () => { throw Error("must not fetch"); };
+  const response = await proxyRequest(req("api/v1/household/help-cases"), ["api","v1","household","help-cases"]);
+  assert.equal(response.status, 401);
+});
+
+test("human-help request accepts only a bounded summary", async () => {
+  setup();
+  let init;
+  globalThis.fetch = async (_url, options) => { init = options; return Response.json({ status: "open", volunteer_assignment_enabled: false }); };
+  const context = { identityId: "11111111-1111-4111-8111-111111111111", householdId: "22222222-2222-4222-8222-222222222222" };
+  const response = await proxyRequest(
+    req("api/v1/household/help-cases", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ summary: "  Need help  " }) }),
+    ["api","v1","household","help-cases"],
+    { verifiedContext: context },
+  );
+  assert.equal(response.status, 200);
+  assert.deepEqual(JSON.parse(Buffer.from(init.body).toString("utf8")), { summary: "Need help" });
+});
+
+test("human-help close rejects invalid case IDs", async () => {
+  setup();
+  globalThis.fetch = async () => { throw Error("must not fetch"); };
+  const context = { identityId: "11111111-1111-4111-8111-111111111111", householdId: "22222222-2222-4222-8222-222222222222" };
+  const response = await proxyRequest(
+    req("api/v1/household/help-cases/close", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ case_id: "bad-id" }) }),
+    ["api","v1","household","help-cases","close"],
+    { verifiedContext: context },
+  );
+  assert.equal(response.status, 422);
+});
