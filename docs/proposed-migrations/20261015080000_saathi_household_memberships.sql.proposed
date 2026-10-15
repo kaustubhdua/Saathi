@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS public.saathi_household_memberships (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   auth_user_id uuid NOT NULL UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE,
   household_id uuid NOT NULL REFERENCES public.saathi_households(id) ON DELETE CASCADE,
-  verified_phone text NOT NULL CHECK (verified_phone ~ '^\\+[1-9][0-9]{7,14}$'),
+  verified_phone text NOT NULL CHECK (verified_phone ~ '^\+[1-9][0-9]{7,14}$'),
   pin_hash text NOT NULL CHECK (pin_hash ~ '^[0-9a-f]{64}$'),
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
