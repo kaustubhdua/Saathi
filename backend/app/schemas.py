@@ -1,4 +1,5 @@
 from typing import Literal
+from uuid import uuid4
 from pydantic import BaseModel, ConfigDict, Field
 
 Intent = Literal["scheme", "farming", "document", "task", "general", "human"]
@@ -47,6 +48,21 @@ class ConsentUpdateRequest(BaseModel):
 
     purpose: Literal["memory", "outbound_calls"]
     granted: bool
+
+
+class HouseholdTaskCreateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    title: str = Field(min_length=1, max_length=300)
+    missing_items: list[str] = Field(default_factory=list, max_length=20)
+    idempotency_key: str = Field(default_factory=lambda: str(uuid4()), min_length=1, max_length=160)
+
+
+class HouseholdTaskStatusRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    task_id: str = Field(min_length=36, max_length=36)
+    status: Literal["completed", "cancelled"]
 
 
 class AgentRequest(ConversationRequest):
