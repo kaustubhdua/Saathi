@@ -213,17 +213,24 @@ class SupabaseMemoryRepository(_SupabaseRepository):
         try:
             rows = await self._request("POST", "saathi_household_memories", payload)
         except SupabaseRepositoryError as exc:
+            if "http_403" in str(exc):
+                raise SupabaseRepositoryError("household_memory_consent_required") from exc
             if "http_409" not in str(exc):
                 raise
-            rows = await self._request(
-                "PATCH",
-                "saathi_household_memories"
-                f"?household_id=eq.{household_uuid}"
-                f"&memory_type=eq.{quote(memory_type, safe='')}"
-                f"&key_name=eq.{quote(key_name, safe='')}"
-                "&select=id,memory_type,key_name,value_text,source,updated_at,expires_at",
-                payload,
-            )
+            try:
+                rows = await self._request(
+                    "PATCH",
+                    "saathi_household_memories"
+                    f"?household_id=eq.{household_uuid}"
+                    f"&memory_type=eq.{quote(memory_type, safe='')}"
+                    f"&key_name=eq.{quote(key_name, safe='')}"
+                    "&select=id,memory_type,key_name,value_text,source,updated_at,expires_at",
+                    payload,
+                )
+            except SupabaseRepositoryError as update_error:
+                if "http_403" in str(update_error):
+                    raise SupabaseRepositoryError("household_memory_consent_required") from update_error
+                raise
         if not rows:
             raise SupabaseRepositoryError("household_memory_save_failed")
         return self._public_memory(rows[0])
