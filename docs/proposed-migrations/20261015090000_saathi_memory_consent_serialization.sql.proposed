@@ -1,0 +1,45 @@
+-- PROPOSED ONLY. Do not apply until PR #58's migration-history reconciliation
+-- is approved for every target environment.
+--
+-- The original memory consent guard reads the household consent row without a
+-- row lock. A concurrent revoke/delete can therefore race an in-flight insert.
+-- Lock the household row in the BEFORE INSERT/UPDATE trigger so a memory write
+-- and a consent revocation serialize on the same row:
+--   * a write that locks first commits before revocation, then revocation purges it;
+--   * revocation that locks first commits, then the write observes revoked consent
+--     and is rejected.
+CREATE OR REPLACE FUNCTION public.saathi_enforce_memory_consent()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = pg_catalog, public
+AS $$
+DECLARE
+  current_memory_consent boolean;
+  current_memory_consent_at timestamptz;
+  current_memory_consent_revoked_at timestamptz;
+BEGIN
+  SELECT h.memory_consent, h.memory_consent_at, h.memory_consent_revoked_at
+    INTO current_memory_consent, current_memory_consent_at, current_memory_consent_revoked_at
+    FROM public.saathi_households AS h
+   WHERE h.id = NEW.household_id
+   FOR UPDATE;
+
+  IF NOT FOUND
+     OR current_memory_consent IS DISTINCT FROM TRUE
+     OR current_memory_consent_at IS NULL
+     OR (
+       current_memory_consent_revoked_at IS NOT NULL
+       AND current_memory_consent_revoked_at >= current_memory_consent_at
+     )
+  THEN
+    RAISE EXCEPTION 'household_memory_consent_required'
+      USING ERRCODE = '42501';
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.saathi_enforce_memory_consent() FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.saathi_enforce_memory_consent() TO service_role;
