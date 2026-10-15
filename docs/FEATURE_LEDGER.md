@@ -9,6 +9,7 @@ Last verified: 2026-10-15 UTC
 - Dashboard keyboard accessibility and truthful status labels: [PR #63](https://github.com/kaustubhdua/Saathi/pull/63), merged.
 - Shared production rate limiting: [PR #64](https://github.com/kaustubhdua/Saathi/pull/64), merged; production requires configured Upstash Redis and a trusted single-IP header.
 - Phone OTP identity, household PIN and purpose-specific consent: [PR #70](https://github.com/kaustubhdua/Saathi/pull/70), draft; automated CI has passed on the current code candidate, while migration and live-provider gates remain.
+- Household task list/create/complete/cancel: [PR #71](https://github.com/kaustubhdua/Saathi/pull/71), stacked draft; backend, frontend proxy, and dashboard UI added, with live database isolation and reminder delivery still unverified.
 - Migration quarantine/index proposal: [PR #58](https://github.com/kaustubhdua/Saathi/pull/58), draft; do not merge until all environments' migration histories are reconciled.
 - [Release acceptance matrix](RELEASE_ACCEPTANCE_MATRIX.md)
 - [Provider verification plan](PROVIDER_VERIFICATION.md)
@@ -33,11 +34,16 @@ Last verified: 2026-10-15 UTC
 - The membership migration remains proposed outside active discovery until PR #58's migration-history reconciliation is approved. Until that table exists, household-specific requests fail closed.
 - The feature requires public `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (or the existing public anon key), plus server-only `SUPABASE_URL` and `SUPABASE_SECRET_KEY`. Never expose the secret key through `NEXT_PUBLIC_*`.
 
+## Partial — PR #71 stacked on PR #70
+
+- Authenticated household task endpoints list open tasks, create tasks with household-scoped idempotency, and complete/cancel tasks. The dashboard exposes task creation and status controls.
+- Tasks persist in the existing `saathi_pending_tasks` table; this does not imply scheduled reminder dispatch or automatic callback delivery. Real database isolation tests remain outstanding.
+
 ## Other partial implementation
 
 - Scheme catalogue data carries reviewed/stale/unknown freshness rather than a false live retrieval timestamp. Eligibility and deadlines still need official portal verification.
 - Mandi records with invalid, future-dated or over-seven-day observations are withheld from current-price claims. Live OGD record selection, market ambiguity and units still need provider-backed verification.
-- Consent and task repository/schema foundations exist, but automatic memory writes, durable reminder dispatch, volunteer assignment/resolution and cross-household integration tests remain incomplete.
+- Automatic conversation-memory writes, durable reminder dispatch, volunteer assignment/resolution and cross-household integration tests remain incomplete.
 - PR #58 quarantines two unprefixed legacy migrations outside active discovery, adds a namespace test, and proposes three Saathi-only indexes. Keep it draft until migration history is reconciled across every relevant environment.
 
 ## Blocked / not tested
