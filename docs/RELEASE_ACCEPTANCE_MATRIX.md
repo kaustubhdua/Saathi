@@ -8,8 +8,8 @@ This is an evidence ledger, not a declaration that release gates have passed. Au
 
 - Main baseline for this branch: `edd5164fc406b87a5ab811d9746ad21e7e4c1d1f` after PR #66.
 - PR #57 (API proxy/source freshness), #59 (identity fail-closed guard), #61 (telephony callback state handling), #63 (dashboard accessibility) and #64 (shared production rate limiting) are merged.
-- PR #68 implements phone OTP, household PIN, user-to-household mapping and consent workflows; exact-head CI run #828 passed all five jobs on `a7b187091ecdc87283077addd9ad93ced62eade5`. Migration activation and live Auth/SMS tests remain outstanding.
-- PR #58 remains draft because other environments' migration histories are not verified.
+- PR #68 implements phone OTP, household PIN, user-to-household mapping and consent workflows; exact-head CI run #848 passed all five jobs on `5892a7321a509cff12471b147b4c7d3988ab1cd2`. Migration activation and live Auth/SMS tests remain outstanding.
+- PR #58 remains draft because other environments' migration histories are not verified; its latest exact-head CI run #840 passed all five jobs.
 - Production Vercel configuration/deployment remains deferred until 2026-10-24.
 - No live provider test, live database DDL, or production deployment is claimed here.
 
@@ -30,7 +30,7 @@ This is an evidence ledger, not a declaration that release gates have passed. Au
 | 11 | Reminder/volunteer workflows persist, dispatch, retry, assign and resolve correctly | NOT COMPLETE | Durable dispatcher, atomic claims, retry/quiet-hour tests and operator queue evidence |
 | 12 | Mobile, keyboard, screen-reader, reduced-motion and WCAG 2.2 AA-oriented checks pass | PARTIAL | PR #63 adds keyboard tab navigation and live regions; complete real-device/browser and accessibility audit |
 | 13 | Core Web Vitals, SEO, responsive behavior and error states are measured and pass | NOT VERIFIED | Lighthouse/field data, SEO checks and hosted browser smoke results |
-| 14 | Reproducible frontend build uses a reviewed lockfile and npm ci | CODE + CI PASS | Lockfile committed; run #828 passed `npm ci`, lint, tests, TypeScript and build on exact head `a7b187091ecdc87283077addd9ad93ced62eade5` |
+| 14 | Reproducible frontend build uses a reviewed lockfile and npm ci | CODE + CI PASS | Lockfile committed; run #848 passed `npm ci`, lint, tests, TypeScript and build on exact head `5892a7321a509cff12471b147b4c7d3988ab1cd2` |
 | 15 | Exact release commit has complete CI, deployed SHA, smoke tests, monitoring and rollback evidence | NOT COMPLETE | All manual gates, deployment evidence, runbook and rollback rehearsal |
 
 ## Evidence links
