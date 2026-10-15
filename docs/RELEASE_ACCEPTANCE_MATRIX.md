@@ -8,7 +8,7 @@ This is an evidence ledger, not a declaration that release gates have passed. Au
 
 - Main baseline for this branch: `edd5164fc406b87a5ab811d9746ad21e7e4c1d1f` after PR #66.
 - PR #57 (API proxy/source freshness), #59 (identity fail-closed guard), #61 (telephony callback state handling), #63 (dashboard accessibility) and #64 (shared production rate limiting) are merged.
-- PR #68 implements phone OTP, household PIN, consent, household task APIs and explicit user-entered memory. Exact-head CI run #894 passed all five jobs on `ae17c5e1f7b5daa6f0fce6a60228c79292f87f5c`, including regression tests for the active consent-locking migration.
+- PR #68 implements phone OTP, household PIN, consent, household task APIs and explicit user-entered memory. Exact-head CI run #899 passed all five jobs on `a22a81274428e1339fe31654f547a017fff6fcf6`, including active consent-locking and task idempotency-query encoding regression tests.
 - Trusted-IP validation, bounded development limiter storage and phone-enrollment collision isolation have regression coverage. Live Auth/SMS and migration activation remain outstanding.
 - Read-only live verification found six recorded Saathi migrations, including `saathi_memory_consent_locking`, eight Saathi tables with RLS enabled, and no `saathi_household_memberships` table. Authenticated household actions therefore remain fail-closed until the membership migration is approved and applied safely.
 - A separate Supabase project named `Saathi` in `ap-northeast-2` is inactive and its migration-history query timed out. It was not restored; do not restore it without explicit operator approval. Migration reconciliation remains incomplete until this environment is safely inspected.
