@@ -9,6 +9,9 @@ const identity = read("../lib/household-identity.ts");
 const login = read("../app/login/page.tsx");
 const proxyRoute = read("../app/backend/[...path]/route.ts");
 const consentRoute = read("../app/api/auth/verify/route.ts");
+const pinRoute = read("../app/api/auth/household-pin/route.ts");
+const signoutRoute = read("../app/api/auth/signout/route.ts");
+const membershipMigration = read("../../docs/proposed-migrations/20261015080000_saathi_household_memberships.sql.proposed");
 
 test("Supabase SSR auth uses cookie sessions and publishable key only", () => {
   assert.match(server, /createServerClient/);
@@ -43,4 +46,24 @@ test("proxy resolves household context server-side and protects consent routes",
   assert.match(proxyRoute, /household_identity_unavailable/);
   assert.match(proxyRoute, /household_pin_verification_required/);
   assert.match(proxyRoute, /requiresUserAction \? 401 : 503/);
+});
+
+
+test("household PIN is separate, rate-limited and server-keyed", () => {
+  assert.match(pinRoute, /isAuthRateLimited\(request, user\.phone, "pin"\)/);
+  assert.match(pinRoute, /verifyHouseholdPin\(user\.id, body\.pin, existing\.pin_hash\)/);
+  assert.match(pinRoute, /setHouseholdContextCookie\(user\.id, membership\.household_id\)/);
+  assert.match(identity, /HOUSEHOLD_PIN_PEPPER/);
+  assert.match(identity, /HOUSEHOLD_CONTEXT_SIGNING_SECRET/);
+  assert.match(identity, /httpOnly: true/);
+  assert.match(signoutRoute, /clearHouseholdContextCookie/);
+});
+
+test("proposed membership migration denies browser access and never trusts phone alone", () => {
+  assert.match(membershipMigration, /auth_user_id uuid NOT NULL UNIQUE REFERENCES auth\.users\(id\)/);
+  assert.match(membershipMigration, /pin_hash text NOT NULL/);
+  assert.match(membershipMigration, /ENABLE ROW LEVEL SECURITY/);
+  assert.match(membershipMigration, /REVOKE ALL ON TABLE public\.saathi_household_memberships FROM PUBLIC, anon, authenticated/);
+  assert.match(membershipMigration, /GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public\.saathi_household_memberships TO service_role/);
+  assert.match(membershipMigration, /PROPOSED ONLY/);
 });
