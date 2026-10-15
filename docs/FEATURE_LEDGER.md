@@ -24,7 +24,7 @@ Last verified: 2026-10-15 UTC
 ## Partial — PR #64 pending CI and provider configuration
 
 - Supabase SSR phone OTP login routes and a login page are added. SMS delivery still requires enabling Supabase Phone Auth and configuring the SMS provider in the project dashboard.
-- The server verifies the Supabase user, requires a confirmed E.164 phone, then maps it to the unique `saathi_households.phone_number` field. First-login household rows start with memory and outbound-call consent disabled.
+- The server verifies the Supabase user and confirmed E.164 phone, then maps the immutable Supabase Auth user ID through the proposed `saathi_household_memberships` table; a phone number alone never grants access. First-login household rows start with memory and outbound-call consent disabled. The membership migration remains proposed until PR #58 migration-history reconciliation is approved.
 - The public proxy injects verified identity/household headers only from the server-side session resolver. The backend rejects client-supplied household IDs and requires both verified headers for household-specific routes.
 - Purpose-specific memory and outbound-call consent status/update endpoints and UI controls are added. Memory consent is explicitly described as permission for future storage because automatic conversation-memory writes are not yet connected.
 - The proxy exposes only readiness, agent, voice and purpose-specific consent routes. Outbound call APIs and task APIs remain unavailable to the browser.
