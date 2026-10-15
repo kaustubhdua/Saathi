@@ -2,11 +2,11 @@
 
 This is an evidence gate, not a declaration of completion. Mark an item complete only when the exact candidate commit and target environment have reproducible evidence.
 
-## Current candidate status (2026-10-15)
+## Current candidate status (2026-10-16)
 
 - [x] Consolidated auth/consent/task/explicit-memory UI and API code is on PR #68.
 - [x] Accessible 404, route/global error recovery and dashboard noindex metadata are included in PR #68.
-- [x] Exact-head code CI passed in [run #918](https://github.com/kaustubhdua/Saathi/actions/runs/38776710286) on code SHA `f7accdb1c5020c998ca5e3b1d81da54a63d53673`; subsequent commits on this branch are documentation-only.
+- [x] Atomic household enrollment is now routed through the proposed server-only RPC; the function has a fixed `pg_catalog` search path, per-Auth-user transaction lock, and restricted execution grants. Contract assertions cover these invariants. See the latest exact-head workflow on [PR #68](https://github.com/kaustubhdua/Saathi/pull/68); older runs do not certify newer commits.
 - [x] Backend dependency audit passed; production-only npm audit reports zero vulnerabilities.
 - [ ] PR #68 is still draft; do not merge until the live gates below are resolved.
 - [ ] PR #58 is still draft because migration history across all relevant environments has not been reconciled.
@@ -14,7 +14,7 @@ This is an evidence gate, not a declaration of completion. Mark an item complete
 
 ## Before merge
 
-- [ ] Exact-head CI is green after the last code change: frontend lint, Node contract tests, TypeScript, production build, backend pytest/API smoke, dependency audit, Docker build and Streamlit smoke.
+- [ ] Latest exact-head CI is green after all current code and documentation updates: frontend lint, Node contract tests, TypeScript, production build, backend pytest/API smoke, dependency audit, Docker build and Streamlit smoke. The PR's latest check is authoritative.
 - [ ] No secrets, real phone numbers, household data, access tokens or private provider payloads are present in source, logs, fixtures or artifacts.
 - [ ] Frontend lockfile is committed and reproducible with `npm ci`.
 - [ ] Five high-severity development-tool-chain npm audit findings (`eslint-config-next` / `fast-glob` / `micromatch` / `braces`) are recorded and risk-reviewed; do not use the suggested major downgrade. Production-only npm audit currently reports zero findings. Recheck upstream advisory status before release.
@@ -23,7 +23,7 @@ This is an evidence gate, not a declaration of completion. Mark an item complete
 ## Database and identity — BLOCKING
 
 - [ ] Reconcile migration history for every Saathi target environment. The active Nihdhoom project has six recorded Saathi migrations; the separate inactive Saathi project was not restored because its history query timed out. Do not restore it without operator approval.
-- [ ] Review PR #58's legacy migration quarantine and Saathi-only indexes; do not apply DDL while history remains ambiguous.
+- [ ] Review PR #58's legacy migration quarantine and Saathi-only indexes; do not apply DDL while history remains ambiguous. Read-only inspection on 2026-10-16 confirmed `saathi_household_memberships` and `saathi_enroll_household` are absent from the active shared project.
 - [ ] Review and activate the proposed `saathi_household_memberships` migration only after history reconciliation and an isolated-database dry run.
 - [ ] Configure Supabase Phone Auth and SMS delivery; verify OTP send/verify, session refresh, sign-out, household PIN setup/verification, expiry and invalid-session handling.
 - [ ] Verify phone-number recycling and concurrent first-login isolation with two distinct Auth identities. A phone number alone must never grant access to another household.
