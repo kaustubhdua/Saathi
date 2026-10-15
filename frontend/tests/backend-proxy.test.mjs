@@ -34,6 +34,7 @@ test("enforces a per-instance request limit in development", async () => { setup
 
 test("rate-limit bucket storage stays bounded under high-cardinality IP input", async () => {
   setup();
+  process.env.NODE_ENV = "development";
   globalThis.fetch = async () => Response.json({ status: "alive" });
   for (let i = 0; i < 2_500; i += 1) {
     const ip = `198.18.${Math.floor(i / 256)}.${i % 256}`;
@@ -46,6 +47,7 @@ test("rate-limit bucket storage stays bounded under high-cardinality IP input", 
 
 test("malformed X-Real-IP values cannot create unbounded distinct buckets", async () => {
   setup();
+  process.env.NODE_ENV = "development";
   globalThis.fetch = async () => Response.json({ status: "alive" });
   let response;
   for (let i = 0; i < 31; i += 1) {
