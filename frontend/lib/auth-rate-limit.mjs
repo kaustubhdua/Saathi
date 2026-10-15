@@ -2,6 +2,7 @@ import { createHmac } from "node:crypto";
 import { isIP } from "node:net";
 
 const WINDOW_MS = 15 * 60 * 1000;
+const MAX_BUCKETS = 5000;
 const buckets = new Map();
 const RATE_LIMIT_SCRIPT = "local count = redis.call('INCR', KEYS[1]); if count == 1 then redis.call('EXPIRE', KEYS[1], ARGV[1]); end; return count";
 
@@ -12,7 +13,22 @@ function consume(key, limit, now = Date.now()) {
     buckets.set(key, bucket);
   }
   bucket.count += 1;
+  // Refresh insertion order so bounded eviction removes the least recently used
+  // active key, not the key just consumed.
+  buckets.delete(key);
+  buckets.set(key, bucket);
   return bucket.count <= limit;
+}
+
+function pruneBuckets(now = Date.now()) {
+  if (buckets.size <= MAX_BUCKETS) return;
+  for (const [key, value] of buckets) {
+    if (now - value.startedAt >= WINDOW_MS) buckets.delete(key);
+    if (buckets.size <= MAX_BUCKETS) return;
+  }
+  while (buckets.size > MAX_BUCKETS) {
+    buckets.delete(buckets.keys().next().value);
+  }
 }
 
 function sharedConfiguration(env) {
@@ -79,13 +95,14 @@ export async function isAuthRateLimited(request, phone, action) {
 
   const phoneAllowed = consume(`${action}:phone:${phone}`, phoneLimit);
   const ipAllowed = consume(`${action}:ip:${ip}`, ipLimit);
-  if (buckets.size > 5000) {
-    const now = Date.now();
-    for (const [key, value] of buckets) if (now - value.startedAt >= WINDOW_MS) buckets.delete(key);
-  }
+  pruneBuckets();
   return !phoneAllowed || !ipAllowed;
 }
 
 export function _resetAuthRateLimitForTests() {
   buckets.clear();
+}
+
+export function _authRateLimitBucketCountForTests() {
+  return buckets.size;
 }
