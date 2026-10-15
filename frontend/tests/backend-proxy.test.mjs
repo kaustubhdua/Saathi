@@ -111,3 +111,28 @@ test("shared rate limiter returns 429 when the atomic counter exceeds the limit"
   assert.equal(response.status, 429);
   assert.equal((await response.json()).detail, "rate_limit_exceeded");
 });
+
+
+test("production uses an atomic shared counter with a pseudonymous Redis key", async () => {
+  setup();
+  let limiterUrl;
+  let limiterInit;
+  globalThis.fetch = async () => Response.json({ status: "alive" });
+  const response = await proxyRequest(req("health/live", {}, "198.51.100.23"), ["health", "live"], {
+    rateLimitFetchImpl: async (url, init) => {
+      limiterUrl = url;
+      limiterInit = init;
+      return Response.json({ result: 1 });
+    },
+  });
+  assert.equal(response.status, 200);
+  assert.equal(limiterUrl, process.env.UPSTASH_REDIS_REST_URL);
+  assert.equal(limiterInit.method, "POST");
+  assert.equal(new Headers(limiterInit.headers).get("authorization"), `Bearer ${process.env.UPSTASH_REDIS_REST_TOKEN}`);
+  const command = JSON.parse(limiterInit.body);
+  assert.equal(command[0], "EVAL");
+  assert.match(command[1], /redis\.call\('INCR'/);
+  assert.match(command[3], /^saathi:rate:v1:[a-f0-9]{64}$/);
+  assert.doesNotMatch(command[3], /198\.51\.100\.23/);
+  assert.equal(command[4], "60");
+});
