@@ -1,14 +1,16 @@
 from base64 import b64encode
+from datetime import datetime, timezone
 from hmac import compare_digest
 from ipaddress import ip_address
 from urllib.parse import urlsplit
 from time import perf_counter
+from uuid import UUID
 
 from fastapi import FastAPI, File, Form, Header, HTTPException, Request, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import get_settings
-from .schemas import AgentRequest, CallRequest, ConversationRequest, ConversationResponse, LocationContext, VoiceTurnResponse
+from .schemas import AgentRequest, CallRequest, ConsentUpdateRequest, ConversationRequest, ConversationResponse, LocationContext, VoiceTurnResponse
 from .orchestrator import AgentContext, Orchestrator
 from .rate_limit import InMemoryRateLimiter
 from .telephony import HmacWebhookVerifier
@@ -19,7 +21,7 @@ from .voice import VoiceGateway
 from .voice_bridge import run_exotel_realtime_session, run_exotel_session
 from .webhook_events import InMemoryWebhookEventStore, derive_event_id, record_supabase_webhook_event
 from .supabase_store import record_conversation_metadata
-from .domain import ConsentType
+from .domain import Consent, ConsentType
 from .supabase_repositories import SupabaseCallRepository, SupabaseConsentRepository, SupabaseRepositoryError
 from .scheme_catalog import get_scheme, list_schemes
 
@@ -136,10 +138,26 @@ def _authorize_api_request(supplied_key: str | None) -> None:
         raise HTTPException(status_code=401, detail="api_authentication_required")
 
 
-def _authorize_household_context(household_id: str | None) -> None:
-    """Until a verified end-user identity is wired, production cannot trust client household IDs."""
-    if household_id and not (settings.demo_mode and settings.app_env.lower() != "production"):
+def _authorize_household_context(
+    client_household_id: str | None,
+    verified_household_id: str | None = None,
+    verified_identity_id: str | None = None,
+) -> str | None:
+    """Trust household context only when the server-side proxy supplies verified identity headers."""
+    if client_household_id:
+        if settings.demo_mode and settings.app_env.lower() != "production":
+            return client_household_id
         raise HTTPException(status_code=403, detail="verified_household_identity_required")
+    if not verified_household_id and not verified_identity_id:
+        return None
+    if not verified_household_id or not verified_identity_id:
+        raise HTTPException(status_code=403, detail="verified_household_identity_required")
+    try:
+        household_uuid = str(UUID(verified_household_id))
+        UUID(verified_identity_id)
+    except (ValueError, TypeError, AttributeError) as exc:
+        raise HTTPException(status_code=403, detail="verified_household_identity_required") from exc
+    return household_uuid
 
 
 def _configured_telephony_callback_url() -> str:
@@ -235,20 +253,22 @@ async def conversation(
     payload: ConversationRequest,
     request: Request,
     x_saathi_api_key: str | None = Header(default=None),
+    x_saathi_verified_household: str | None = Header(default=None),
+    x_saathi_verified_identity: str | None = Header(default=None),
 ) -> ConversationResponse:
     _authorize_api_request(x_saathi_api_key)
-    _authorize_household_context(payload.household_id)
+    household_id = _authorize_household_context(payload.household_id, x_saathi_verified_household, x_saathi_verified_identity)
     key = request.client.host if request.client else "unknown"
     if not limiter.allow(key):
         raise HTTPException(status_code=429, detail="rate_limited")
     started = perf_counter()
     outcome = await orchestrator.handle(
         payload.message,
-        AgentContext(household_id=payload.household_id, language=payload.language, location=payload.location),
+        AgentContext(household_id=household_id, language=payload.language, location=payload.location),
     )
     failed = bool(outcome.result and not outcome.result.ok)
     await record_conversation_metadata(
-        household_id=payload.household_id,
+        household_id=household_id,
         agent_used=outcome.intent,
         tools_called=[outcome.tool_name] if outcome.tool_name else [],
         confidence_score=outcome.confidence,
@@ -277,20 +297,22 @@ async def agent(
     payload: AgentRequest,
     request: Request,
     x_saathi_api_key: str | None = Header(default=None),
+    x_saathi_verified_household: str | None = Header(default=None),
+    x_saathi_verified_identity: str | None = Header(default=None),
 ) -> ConversationResponse:
     _authorize_api_request(x_saathi_api_key)
-    _authorize_household_context(payload.household_id)
+    household_id = _authorize_household_context(payload.household_id, x_saathi_verified_household, x_saathi_verified_identity)
     key = request.client.host if request.client else "unknown"
     if not limiter.allow(f"agent:{key}"):
         raise HTTPException(status_code=429, detail="rate_limited")
     started = perf_counter()
     outcome = await orchestrator.handle(
         payload.message,
-        AgentContext(household_id=payload.household_id, language=payload.language, location=payload.location),
+        AgentContext(household_id=household_id, language=payload.language, location=payload.location),
     )
     failed = bool(outcome.result and not outcome.result.ok)
     await record_conversation_metadata(
-        household_id=payload.household_id,
+        household_id=household_id,
         agent_used=outcome.intent,
         tools_called=[outcome.tool_name] if outcome.tool_name else [],
         confidence_score=outcome.confidence,
@@ -321,12 +343,14 @@ async def voice_turn(
     language: str = Form("hi"),
     household_id: str | None = Form(None),
     x_saathi_api_key: str | None = Header(default=None),
+    x_saathi_verified_household: str | None = Header(default=None),
+    x_saathi_verified_identity: str | None = Header(default=None),
     latitude: float | None = Form(None),
     longitude: float | None = Form(None),
     location_label: str | None = Form(None),
 ) -> VoiceTurnResponse:
     _authorize_api_request(x_saathi_api_key)
-    _authorize_household_context(household_id)
+    verified_household_id = _authorize_household_context(household_id, x_saathi_verified_household, x_saathi_verified_identity)
     key = request.client.host if request.client else "unknown"
     if not limiter.allow(f"voice:{key}"):
         raise HTTPException(status_code=429, detail="rate_limited")
@@ -352,7 +376,7 @@ async def voice_turn(
         location = LocationContext(latitude=latitude, longitude=longitude, label=location_label)
     started = perf_counter()
     try:
-        turn = await voice_gateway.handle(raw, language=language, household_id=household_id, location=location)
+        turn = await voice_gateway.handle(raw, language=language, household_id=verified_household_id, location=location)
     except RuntimeError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     except ValueError as exc:
@@ -377,6 +401,53 @@ async def voice_turn(
         tool_name=turn.outcome.tool_name,
         latency_ms=round((perf_counter() - started) * 1000, 2),
     )
+
+
+@app.get("/api/v1/household/consent")
+async def get_household_consent(
+    x_saathi_api_key: str | None = Header(default=None),
+    x_saathi_verified_household: str | None = Header(default=None),
+    x_saathi_verified_identity: str | None = Header(default=None),
+) -> dict[str, object]:
+    _authorize_api_request(x_saathi_api_key)
+    household_id = _authorize_household_context(None, x_saathi_verified_household, x_saathi_verified_identity)
+    if not household_id:
+        raise HTTPException(status_code=401, detail="verified_phone_identity_required")
+    repository = SupabaseConsentRepository()
+    try:
+        memory = await repository.get(household_id=household_id, consent_type=ConsentType.MEMORY)
+        outbound = await repository.get(household_id=household_id, consent_type=ConsentType.OUTBOUND_CALLS)
+    except (SupabaseRepositoryError, ValueError) as exc:
+        raise HTTPException(status_code=503, detail="consent_store_unavailable") from exc
+    return {
+        "memory": {"granted": bool(memory and memory.granted), "recorded_at": memory.recorded_at.isoformat() if memory else None},
+        "outbound_calls": {"granted": bool(outbound and outbound.granted), "recorded_at": outbound.recorded_at.isoformat() if outbound else None},
+    }
+
+
+@app.post("/api/v1/household/consent")
+async def update_household_consent(
+    payload: ConsentUpdateRequest,
+    x_saathi_api_key: str | None = Header(default=None),
+    x_saathi_verified_household: str | None = Header(default=None),
+    x_saathi_verified_identity: str | None = Header(default=None),
+) -> dict[str, object]:
+    _authorize_api_request(x_saathi_api_key)
+    household_id = _authorize_household_context(None, x_saathi_verified_household, x_saathi_verified_identity)
+    if not household_id:
+        raise HTTPException(status_code=401, detail="verified_phone_identity_required")
+    consent_type = ConsentType.MEMORY if payload.purpose == "memory" else ConsentType.OUTBOUND_CALLS
+    consent = Consent(
+        household_id=household_id,
+        consent_type=consent_type,
+        granted=payload.granted,
+        recorded_at=datetime.now(timezone.utc),
+    )
+    try:
+        saved = await SupabaseConsentRepository().save(consent)
+    except (SupabaseRepositoryError, ValueError) as exc:
+        raise HTTPException(status_code=503, detail="consent_store_unavailable") from exc
+    return {"purpose": payload.purpose, "granted": saved.granted, "recorded_at": saved.recorded_at.isoformat()}
 
 
 @app.post("/api/v1/calls")
