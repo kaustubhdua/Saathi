@@ -155,11 +155,17 @@ export default function Dashboard() {
   };
 
   const signOut = async () => {
-    await fetch("/api/auth/signout", { method: "POST" }).catch(() => undefined);
-    setAuthStatus((current) => ({ ...current, loading: false, phoneSuffix: null, householdReady: false }));
-    setConsentStatus(null);
-    setConsentMessage(null);
     setConsentError(null);
+    try {
+      const response = await fetch("/api/auth/signout", { method: "POST" });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.detail || "Sign out failed.");
+      setAuthStatus((current) => ({ ...current, loading: false, phoneSuffix: null, householdReady: false }));
+      setConsentStatus(null);
+      setConsentMessage(null);
+    } catch (cause) {
+      setConsentError(cause instanceof Error ? cause.message : "Sign out could not be completed. Please retry.");
+    }
   };
 
   const trace = useMemo(() => {
