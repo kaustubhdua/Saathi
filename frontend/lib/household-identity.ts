@@ -26,6 +26,10 @@ function getPinPepper() {
   if (value.length < 32) throw new Error("household_pin_pepper_not_configured");
   return value;
 }
+export function assertHouseholdIdentitySecretsConfigured() {
+  getPinPepper();
+  getSigningSecret();
+}
 export async function getVerifiedPhoneUser(): Promise<VerifiedPhoneUser | null> {
   const auth = await createSupabaseServerClient();
   if (!auth) return null;
