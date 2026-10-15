@@ -64,7 +64,22 @@ test("household PIN is separate, rate-limited and server-keyed", () => {
 
 test("proposed membership migration denies browser access and never trusts phone alone", () => {
   assert.match(membershipMigration, /auth_user_id uuid NOT NULL UNIQUE REFERENCES auth\.users\(id\)/);
-  assert.match(membershipMigration, /pin_hash text NOT NULL/);
+  assert.ok(membershipMigration.includes("pin_hash text NOT NULL CHECK (pin_hash ~ '^[0-9a-f]{64}
+  assert.match(membershipMigration, /ENABLE ROW LEVEL SECURITY/);
+  assert.match(membershipMigration, /REVOKE ALL ON TABLE public\.saathi_household_memberships FROM PUBLIC, anon, authenticated/);
+  assert.match(membershipMigration, /GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public\.saathi_household_memberships TO service_role/);
+  assert.match(membershipMigration, /PROPOSED ONLY/);
+});
+)"));
+  assert.ok(membershipMigration.includes("verified_phone text NOT NULL CHECK (verified_phone ~ '^\\\\+[1-9][0-9]{7,14}
+  assert.match(membershipMigration, /ENABLE ROW LEVEL SECURITY/);
+  assert.match(membershipMigration, /REVOKE ALL ON TABLE public\.saathi_household_memberships FROM PUBLIC, anon, authenticated/);
+  assert.match(membershipMigration, /GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public\.saathi_household_memberships TO service_role/);
+  assert.match(membershipMigration, /PROPOSED ONLY/);
+});
+)"));
+  assert.equal(membershipMigration.trim().endsWith(';'), true);
+  assert.equal((membershipMigration.match(/CREATE INDEX/g) || []).length, 1);
   assert.match(membershipMigration, /ENABLE ROW LEVEL SECURITY/);
   assert.match(membershipMigration, /REVOKE ALL ON TABLE public\.saathi_household_memberships FROM PUBLIC, anon, authenticated/);
   assert.match(membershipMigration, /GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public\.saathi_household_memberships TO service_role/);
