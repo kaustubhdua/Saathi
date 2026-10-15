@@ -37,3 +37,10 @@ test("rejects malformed JSON, arrays, primitives and invalid UTF-8", async () =>
   const request = new Request("https://saathi.example.test", { method: "POST", body, duplex: "half" });
   assert.equal((await readBoundedJson(request)).ok, false);
 });
+
+test("times out a stalled streamed request body", async () => {
+  const body = new ReadableStream({ start() {} });
+  const request = new Request("https://saathi.example.test/api/auth/otp", { method: "POST", body, duplex: "half" });
+  const result = await readBoundedJson(request, 4096, 10);
+  assert.deepEqual(result, { ok: false, status: 408, detail: "request_body_timeout" });
+});
