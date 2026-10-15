@@ -6,6 +6,7 @@ Last verified: 2026-10-15 UTC
 - P0/P1 proxy and freshness: [PR #57](https://github.com/kaustubhdua/Saathi/pull/57), merged.
 - Household identity fail-closed guard: [PR #59](https://github.com/kaustubhdua/Saathi/pull/59), merged.
 - Telephony callback lifecycle and live-call safety gate: [PR #61](https://github.com/kaustubhdua/Saathi/pull/61), merged.
+- Phone OTP identity and purpose-specific household consent: [PR #64](https://github.com/kaustubhdua/Saathi/pull/64), pending CI.
 - Migration quarantine/index proposal: [PR #58](https://github.com/kaustubhdua/Saathi/pull/58), draft; do not merge until all environments' migration histories are reconciled.
 - [Release acceptance matrix](RELEASE_ACCEPTANCE_MATRIX.md)
 - [Provider verification plan](PROVIDER_VERIFICATION.md)
@@ -16,10 +17,12 @@ Last verified: 2026-10-15 UTC
 - The Nihdhoom project was reviewed read-only and contained eight Saathi-prefixed tables with RLS enabled and browser-role access denied.
 - PR #57 merged as `e8a13bdd0022f33707e6a9338d3cc7fcdf039615`; exact-head CI run #770 passed all five jobs, and main run #771 passed.
 - PR #59 merged as `d048170180a24a36280c557150753c687139d9d7`; exact-head CI run #774 passed all five jobs. Production text/voice routes reject caller-supplied household UUIDs until verified identity-to-household ownership exists.
+- PR #64 adds a Supabase phone-OTP session, verified-phone-to-household mapping and purpose-specific consent endpoints/UI. It remains unmerged and needs configured SMS/Auth plus server secrets.
 - No live database migration or production deployment was performed.
 
 ## Partial
 
+- **Phone identity and consent (PR #64):** requires confirmed E.164 phone identity, maps it to the unique Saathi household phone number, starts new households with consent disabled, and routes consent through server-only endpoints. Pending CI and real Supabase Auth/SMS verification; not production-enabled yet.
 - **Dashboard accessibility (PR #63):** scenario tabs use roving tabindex with arrow/Home/End keyboard navigation; API/voice/answer state announcements use live regions; microphone controls expose pressed state; the UI no longer claims consent was collected. This is a code-level contract check, not a full WCAG 2.2 AA audit.
 - Frontend API calls use a same-origin allowlisted proxy; the server injects the API token and production readiness fails closed without operator auth.
 - Scheme catalogue data carries reviewed/stale/unknown freshness rather than a false live retrieval timestamp. Mandi records with invalid, future or over-seven-day observations are withheld from current-price claims.
