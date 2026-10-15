@@ -7,7 +7,8 @@ Last verified: 2026-10-15 UTC
 - Household identity fail-closed guard: [PR #59](https://github.com/kaustubhdua/Saathi/pull/59), merged.
 - Telephony callback lifecycle and live-call safety gate: [PR #61](https://github.com/kaustubhdua/Saathi/pull/61), merged.
 - Dashboard keyboard accessibility and truthful status labels: [PR #63](https://github.com/kaustubhdua/Saathi/pull/63), merged.
-- Phone OTP identity and purpose-specific consent workflow: [PR #64](https://github.com/kaustubhdua/Saathi/pull/64), pending CI.
+- Phone OTP identity and purpose-specific household consent: [PR #65](https://github.com/kaustubhdua/Saathi/pull/65), draft pending CI and migration dependency.
+- Shared production rate limiting: [PR #64](https://github.com/kaustubhdua/Saathi/pull/64), pending CI.
 - Migration quarantine/index proposal: [PR #58](https://github.com/kaustubhdua/Saathi/pull/58), draft; do not merge until all environments' migration histories are reconciled.
 - [Release acceptance matrix](RELEASE_ACCEPTANCE_MATRIX.md)
 - [Provider verification plan](PROVIDER_VERIFICATION.md)
