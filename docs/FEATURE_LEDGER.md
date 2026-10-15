@@ -8,7 +8,7 @@ Last verified: 2026-10-15 UTC
 - Telephony callback lifecycle and live-call safety gate: [PR #61](https://github.com/kaustubhdua/Saathi/pull/61), merged.
 - Dashboard keyboard accessibility and truthful status labels: [PR #63](https://github.com/kaustubhdua/Saathi/pull/63), merged.
 - Shared production rate limiting: [PR #64](https://github.com/kaustubhdua/Saathi/pull/64), merged; production requires configured Upstash Redis and a trusted single-IP header.
-- Phone OTP, household PIN and purpose-specific consent: [PR #68](https://github.com/kaustubhdua/Saathi/pull/68), draft; exact-head CI run #828 passed all five jobs on `a7b187091ecdc87283077addd9ad93ced62eade5`. Migration and live provider gates remain.
+- Phone OTP, household PIN and purpose-specific consent: [PR #68](https://github.com/kaustubhdua/Saathi/pull/68), draft; exact-head CI run #848 passed all five jobs on `5892a7321a509cff12471b147b4c7d3988ab1cd2`. Migration and live provider gates remain.
 - Migration quarantine/index proposal: [PR #58](https://github.com/kaustubhdua/Saathi/pull/58), draft; do not merge until all environments' migration histories are reconciled.
 - [Release acceptance matrix](RELEASE_ACCEPTANCE_MATRIX.md)
 - [Provider verification plan](PROVIDER_VERIFICATION.md)
@@ -38,14 +38,14 @@ Last verified: 2026-10-15 UTC
 - Scheme catalogue data carries reviewed/stale/unknown freshness rather than a false live retrieval timestamp. Eligibility and deadlines still need official portal verification.
 - Mandi records with invalid, future-dated or over-seven-day observations are withheld from current-price claims. Live OGD record selection, market ambiguity and units still need provider-backed verification.
 - Consent and task repository/schema foundations exist, but automatic memory writes, durable reminder dispatch, volunteer assignment/resolution and cross-household integration tests remain incomplete.
-- PR #58 quarantines two unprefixed legacy migrations outside active discovery, adds a namespace test, and proposes three Saathi-only indexes. Keep it draft until migration history is reconciled across every relevant environment.
+- PR #58 quarantines two unprefixed legacy migrations outside active discovery, adds a namespace guard covering DDL/DML/read references, and proposes three Saathi-only indexes. CI run #840 passed all five jobs on `bb0b9c50dd3c0eb2d2d09dde5554d857b98088dd`; keep it draft until migration history is reconciled across every relevant environment.
 
 ## Blocked / not tested
 
 - No real Open-Meteo, OGD/AGMARKNET, Sarvam STT/TTS, document AI or Exotel round-trip test is claimed.
 - Exotel callback authentication remains unverified: the current webhook requires an HMAC over the raw body, and official callback docs do not establish that Exotel supplies the custom HMAC header. Keep `TELEPHONY_CALLBACK_SIGNATURE_VERIFIED=false` until verified with the actual provider or trusted signer.
 - Upstash shared rate limiting and the hosting platform's trusted-IP header must be configured/tested before production traffic; code intentionally fails closed otherwise.
-- PR #66 added the frontend lockfile and switched CI to `npm ci`; PR #68 regenerated the lockfile for the Supabase dependencies. Exact-head CI run #828 passed all five jobs, including `npm ci`, lint, Node tests, TypeScript, build, backend pytest/API smoke, dependency audit, Docker build and Streamlit smoke. Mobile/browser screen-reader tests, full WCAG 2.2 AA audit, reduced-motion/contrast checks, Lighthouse/Core Web Vitals, SEO, monitoring, rollback evidence and deployed SHA remain outstanding.
+- PR #66 added the frontend lockfile and switched CI to `npm ci`; PR #68 regenerated the lockfile for the Supabase dependencies. Exact-head CI run #848 passed all five jobs, including `npm ci`, lint, Node tests, TypeScript, build, backend pytest/API smoke, dependency audit, Docker build and Streamlit smoke. Mobile/browser screen-reader tests, full WCAG 2.2 AA audit, reduced-motion/contrast checks, Lighthouse/Core Web Vitals, SEO, monitoring, rollback evidence and deployed SHA remain outstanding.
 - Vercel deployment/configuration remains deferred until 2026-10-24.
 
 ## Next actions
