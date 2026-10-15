@@ -5,14 +5,14 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "motion/react";
 import {
-  ArrowLeft, ArrowUpRight, Bot, CheckCircle2,
+  AlertTriangle, ArrowLeft, ArrowUpRight, Bot, CheckCircle2,
   CloudRain, Languages, MapPin, Mic2, PhoneCall,
   ShieldCheck, Sparkles, UserRound, Volume2, Wheat, Zap, type LucideIcon
 } from "lucide-react";
 
 
-type Source = { name: string; url: string; retrieved_at: string; freshness_note?: string | null };
-type Evidence = { name: string; url: string; retrieved_at: string; freshness_note?: string | null };
+type Source = { name: string; url: string; retrieved_at?: string | null; freshness_note?: string | null; freshness_status?: string | null };
+type Evidence = { name: string; url: string; retrieved_at?: string | null; freshness_note?: string | null; freshness_status?: string | null };
 type ReadyCapabilities = { core_agent?: boolean; telephony?: boolean; telephony_realtime?: boolean; reasoning?: boolean; mandi?: boolean; speech?: boolean; weather?: boolean; documents?: boolean };
 
 type BrowserSpeechRecognition = {
@@ -331,7 +331,7 @@ export default function Dashboard() {
                 <div className="answer-label"><span><Bot size={15} /> SAATHI RESPONSE</span><b>{result.intent}</b></div>
                 <p>{result.reply}</p>
                 {(result.sources?.length ? result.sources : result.source ? [result.source] : []).map((source, index) => (
-                  <div className="source-row" key={`${source.name}-${source.retrieved_at}-${index}`}><CheckCircle2 size={15} /><div><strong>{source.name}</strong><span>{source.freshness_note || "Provider result retrieved with timestamp."}</span><small>Retrieved · {new Date(source.retrieved_at).toLocaleString()}</small>{source.url && <a href={source.url} target="_blank" rel="noreferrer">View source ↗</a>}</div></div>
+                  <div className="source-row" key={`${source.name}-${source.retrieved_at || source.freshness_status || index}-${index}`}>{source.freshness_status === "stale" || source.freshness_status === "unknown" || source.freshness_status === "future" ? <AlertTriangle size={15} /> : <CheckCircle2 size={15} />}<div><strong>{source.name}</strong><span>{source.freshness_note || "Provider result retrieved with timestamp."}</span><small>{source.retrieved_at ? `Retrieved · ${new Date(source.retrieved_at).toLocaleString()}` : `No live retrieval timestamp · catalogue review status: ${source.freshness_status || "unknown"}`}</small>{source.url && <a href={source.url} target="_blank" rel="noreferrer">View source ↗</a>}</div></div>
                 ))}
                 {!result.sources?.length && !result.source && (
                   <div className="source-row warning"><ShieldCheck size={15} /><div><strong>No live source attached</strong><span>Saathi will not present an unverified answer as live fact.</span></div></div>
