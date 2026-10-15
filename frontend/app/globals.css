@@ -99,5 +99,6 @@ button,a{touch-action:manipulation}
 .task-row>div{min-width:0;flex:1}
 .task-row strong{display:block;color:#183d32;font-size:13px;overflow-wrap:anywhere}
 .task-row p{margin:5px 0 0;color:#69766d;font-size:12px;line-height:1.5}
-.task-row button{flex-shrink:0}
-@media(max-width:640px){.task-form-row{flex-direction:column}.task-row{align-items:flex-start;flex-direction:column}.task-row button{width:100%}}
+.task-row-actions{display:flex;flex-wrap:wrap;gap:8px;flex-shrink:0}
+.task-row-actions button{flex-shrink:0}
+@media(max-width:640px){.task-form-row{flex-direction:column}.task-row{align-items:flex-start;flex-direction:column}.task-row-actions{width:100%}.task-row-actions button{flex:1}}
