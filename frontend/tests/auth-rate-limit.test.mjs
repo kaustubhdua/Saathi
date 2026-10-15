@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { isAuthRateLimited, _resetAuthRateLimitForTests } from "../lib/auth-rate-limit.mjs";
+import { isAuthRateLimited, _resetAuthRateLimitForTests, _authRateLimitBucketCountForTests } from "../lib/auth-rate-limit.mjs";
 
 const originalEnv = { ...process.env };
 const originalFetch = globalThis.fetch;
@@ -58,4 +58,54 @@ test("production OTP limits use atomic shared counters and hash identity keys", 
   assert.ok(calls.every((call) => call.url === "https://saathi-test.upstash.io"));
   assert.ok(calls.every((call) => String(call.command[3]).startsWith("saathi:auth:v1:")));
   assert.ok(calls.every((call) => !JSON.stringify(call.command).includes("+919876543213")));
+});
+
+
+test("production rejects missing trusted client IP before any Upstash request", async () => {
+  process.env.NODE_ENV = "production";
+  process.env.SAATHI_TRUSTED_CLIENT_IP_HEADER = "x-real-ip";
+  process.env.UPSTASH_REDIS_REST_URL = "https://saathi-test.upstash.io";
+  process.env.UPSTASH_REDIS_REST_TOKEN = "test-only-token";
+  let calls = 0;
+  globalThis.fetch = async () => { calls += 1; return Response.json({ result: 1 }); };
+  const request = new Request("https://saathi.example.com/api/auth/otp");
+  await assert.rejects(isAuthRateLimited(request, "+919876543214", "otp"), /trusted_client_ip_invalid/);
+  assert.equal(calls, 0);
+});
+
+test("production rejects malformed and comma-separated trusted client IP before any Upstash request", async () => {
+  process.env.NODE_ENV = "production";
+  process.env.SAATHI_TRUSTED_CLIENT_IP_HEADER = "x-real-ip";
+  process.env.UPSTASH_REDIS_REST_URL = "https://saathi-test.upstash.io";
+  process.env.UPSTASH_REDIS_REST_TOKEN = "test-only-token";
+  let calls = 0;
+  globalThis.fetch = async () => { calls += 1; return Response.json({ result: 1 }); };
+  for (const ip of ["not-an-ip", "192.0.2.1, 192.0.2.2", "192.0.2.1:443", "[2001:db8::1], 2001:db8::2"]) {
+    const request = new Request("https://saathi.example.com/api/auth/otp", { headers: { "x-real-ip": ip } });
+    await assert.rejects(isAuthRateLimited(request, "+919876543215", "otp"), /trusted_client_ip_invalid/);
+  }
+  assert.equal(calls, 0);
+});
+
+test("production rejects unconfigured trusted IP header before any Upstash request", async () => {
+  process.env.NODE_ENV = "production";
+  delete process.env.SAATHI_TRUSTED_CLIENT_IP_HEADER;
+  process.env.UPSTASH_REDIS_REST_URL = "https://saathi-test.upstash.io";
+  process.env.UPSTASH_REDIS_REST_TOKEN = "test-only-token";
+  let calls = 0;
+  globalThis.fetch = async () => { calls += 1; return Response.json({ result: 1 }); };
+  const request = new Request("https://saathi.example.com/api/auth/otp", { headers: { "x-real-ip": "192.0.2.27" } });
+  await assert.rejects(isAuthRateLimited(request, "+919876543216", "otp"), /trusted_client_ip_not_configured/);
+  assert.equal(calls, 0);
+});
+
+
+test("development rate-limit bucket storage remains bounded under high-cardinality traffic", async () => {
+  process.env.NODE_ENV = "development";
+  for (let i = 0; i < 5_100; i += 1) {
+    const ip = `198.18.${Math.floor(i / 256)}.${i % 256}`;
+    const request = new Request("https://saathi.example.com/api/auth/otp", { headers: { "x-real-ip": ip } });
+    await isAuthRateLimited(request, "+919876543217", "test");
+  }
+  assert.ok(_authRateLimitBucketCountForTests() <= 5_000);
 });
