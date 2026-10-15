@@ -213,3 +213,38 @@ test("task status proxy allows only completed or cancelled transitions", async (
   );
   assert.equal(response.status, 422);
 });
+
+
+test("household memory routes require verified identity context", async () => {
+  setup();
+  globalThis.fetch = async () => { throw Error("must not fetch"); };
+  const response = await proxyRequest(req("api/v1/household/memories"), ["api","v1","household","memories"]);
+  assert.equal(response.status, 401);
+});
+
+test("memory writes are bounded and only accept user-confirmed fields", async () => {
+  setup();
+  let init;
+  globalThis.fetch = async (_url, options) => { init = options; return Response.json({ memory_id: "33333333-3333-4333-8333-333333333333" }); };
+  const context = { identityId: "11111111-1111-4111-8111-111111111111", householdId: "22222222-2222-4222-8222-222222222222" };
+  const response = await proxyRequest(
+    req("api/v1/household/memories", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ memory_type: " preference ", key_name: " crop ", value_text: " wheat " }) }),
+    ["api","v1","household","memories"],
+    { verifiedContext: context },
+  );
+  assert.equal(response.status, 200);
+  assert.deepEqual(JSON.parse(Buffer.from(init.body).toString("utf8")), { memory_type: "preference", key_name: "crop", value_text: "wheat" });
+  assert.equal(new Headers(init.headers).get("X-Saathi-Verified-Household"), context.householdId);
+});
+
+test("memory delete accepts only a memory UUID", async () => {
+  setup();
+  globalThis.fetch = async () => { throw Error("must not fetch"); };
+  const context = { identityId: "11111111-1111-4111-8111-111111111111", householdId: "22222222-2222-4222-8222-222222222222" };
+  const response = await proxyRequest(
+    req("api/v1/household/memories/delete", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ memory_id: "not-a-uuid" }) }),
+    ["api","v1","household","memories","delete"],
+    { verifiedContext: context },
+  );
+  assert.equal(response.status, 422);
+});
