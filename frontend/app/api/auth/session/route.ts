@@ -1,4 +1,5 @@
 import { createSupabaseServerClient } from "../../../../lib/supabase/server";
+import { resolveVerifiedHouseholdContext } from "../../../../lib/household-identity";
 
 export async function GET() {
   const supabase = await createSupabaseServerClient();
@@ -6,10 +7,15 @@ export async function GET() {
   const { data, error } = await supabase.auth.getUser();
   const user = !error ? data.user : null;
   const phone = user?.phone_confirmed_at && user.phone ? user.phone : null;
+  let householdContextVerified = false;
+  if (phone) {
+    try { householdContextVerified = Boolean(await resolveVerifiedHouseholdContext()); } catch { householdContextVerified = false; }
+  }
   return Response.json({
     authConfigured: true,
     authenticated: Boolean(user),
     phoneVerified: Boolean(phone),
     phoneSuffix: phone ? phone.slice(-4) : null,
+    householdContextVerified,
   }, { headers: { "Cache-Control": "no-store" } });
 }
