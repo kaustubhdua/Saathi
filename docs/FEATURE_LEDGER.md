@@ -84,3 +84,12 @@ Last verified: 2026-10-15 UTC (2026-10-16 IST)
 - Regression coverage checks malformed WebM, malformed WAV, cross-container MIME spoofing, and confirms codec-qualified WebM MIME reaches the provider boundary after signature validation; the provider is patched to fail if invalid media reaches it.
 - Initial exact-head CI run #963 found one expected-contract regression in `tests/test_health.py`: the existing provider-gating test did not allow the new explicit HTTP 415 for malformed audio. Updated the test to accept the intentional rejection; 174 other tests passed in that run. A fresh exact-head run is pending. No provider call, database write, or deployment was performed.
 - Remaining: add bounded request-level timeout/cancellation and confirm browser-produced media fixtures against real low-end Android capture before enabling any live provider path.
+
+
+## Engineering sprint — scheme effective-date provenance (2026-10-16 IST)
+
+- Scheme records now expose `effective_from` separately from `source_checked_on`, plus an explanatory `effective_date_note`; the API serializes these fields through its existing dataclass response.
+- PM-KISAN operational date: `2018-12-01`, as stated on the [official PM-KISAN portal](https://pmkisan.gov.in/).
+- PMFBY inception is represented as `Kharif 2016`, matching the [official PMFBY guidelines](https://pmfby.gov.in/pdf/Revamped%20Operational%20Guidelines_17th%20August%202020.pdf). The record explicitly warns that current state/crop/season notifications may have separate effective dates and deadlines.
+- The catalogue review date is refreshed to `2026-10-16`; this records the review, not a live government data feed. Regression tests assert both effective-date fields and the distinction from current eligibility/season rules.
+- Verification: exact-head CI for this addition is pending. No scheme eligibility is inferred from these inception dates, and no application is submitted automatically.
