@@ -10,7 +10,7 @@ from fastapi import FastAPI, File, Form, Header, HTTPException, Request, UploadF
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import get_settings
-from .schemas import AgentRequest, CallRequest, ConsentUpdateRequest, ConversationRequest, ConversationResponse, HouseholdMemoryDeleteRequest, HouseholdMemoryWriteRequest, HouseholdTaskCreateRequest, HouseholdTaskStatusRequest, LocationContext, VoiceTurnResponse
+from .schemas import AgentRequest, CallRequest, ConsentUpdateRequest, ConversationRequest, ConversationResponse, HouseholdHelpCaseCloseRequest, HouseholdHelpCaseCreateRequest, HouseholdMemoryDeleteRequest, HouseholdMemoryWriteRequest, HouseholdTaskCreateRequest, HouseholdTaskStatusRequest, LocationContext, VoiceTurnResponse
 from .orchestrator import AgentContext, Orchestrator
 from .rate_limit import InMemoryRateLimiter
 from .telephony import HmacWebhookVerifier
@@ -22,7 +22,7 @@ from .voice_bridge import run_exotel_realtime_session, run_exotel_session
 from .webhook_events import InMemoryWebhookEventStore, derive_event_id, record_supabase_webhook_event
 from .supabase_store import record_conversation_metadata
 from .domain import Consent, ConsentType, Task, TaskStatus
-from .supabase_repositories import SupabaseCallRepository, SupabaseConsentRepository, SupabaseMemoryRepository, SupabaseRepositoryError, SupabaseTaskRepository
+from .supabase_repositories import SupabaseCallRepository, SupabaseConsentRepository, SupabaseMemoryRepository, SupabaseRepositoryError, SupabaseTaskRepository, SupabaseVolunteerCaseRepository
 from .scheme_catalog import get_scheme, list_schemes
 
 
@@ -526,6 +526,66 @@ async def delete_household_memory(
     if not deleted:
         raise HTTPException(status_code=404, detail="household_memory_not_found")
     return {"memory_id": payload.memory_id, "deleted": True}
+
+
+@app.get("/api/v1/household/help-cases")
+async def list_household_help_cases(
+    x_saathi_api_key: str | None = Header(default=None),
+    x_saathi_verified_household: str | None = Header(default=None),
+    x_saathi_verified_identity: str | None = Header(default=None),
+) -> dict[str, object]:
+    _authorize_api_request(x_saathi_api_key)
+    household_id = _authorize_household_context(None, x_saathi_verified_household, x_saathi_verified_identity)
+    if not household_id:
+        raise HTTPException(status_code=401, detail="verified_phone_identity_required")
+    try:
+        cases = await SupabaseVolunteerCaseRepository().list_active_for_household(household_id=household_id)
+    except (SupabaseRepositoryError, ValueError) as exc:
+        raise HTTPException(status_code=503, detail="household_help_cases_unavailable") from exc
+    return {"cases": cases, "volunteer_assignment_enabled": False}
+
+
+@app.post("/api/v1/household/help-cases")
+async def create_household_help_case(
+    payload: HouseholdHelpCaseCreateRequest,
+    x_saathi_api_key: str | None = Header(default=None),
+    x_saathi_verified_household: str | None = Header(default=None),
+    x_saathi_verified_identity: str | None = Header(default=None),
+) -> dict[str, object]:
+    _authorize_api_request(x_saathi_api_key)
+    household_id = _authorize_household_context(None, x_saathi_verified_household, x_saathi_verified_identity)
+    if not household_id:
+        raise HTTPException(status_code=401, detail="verified_phone_identity_required")
+    summary = payload.summary.strip()
+    if not summary:
+        raise HTTPException(status_code=422, detail="help_request_summary_required")
+    try:
+        case = await SupabaseVolunteerCaseRepository().create(household_id=household_id, summary=summary)
+    except (SupabaseRepositoryError, ValueError) as exc:
+        raise HTTPException(status_code=503, detail="household_help_case_create_failed") from exc
+    return {**case, "volunteer_assignment_enabled": False}
+
+
+@app.post("/api/v1/household/help-cases/close")
+async def close_household_help_case(
+    payload: HouseholdHelpCaseCloseRequest,
+    x_saathi_api_key: str | None = Header(default=None),
+    x_saathi_verified_household: str | None = Header(default=None),
+    x_saathi_verified_identity: str | None = Header(default=None),
+) -> dict[str, object]:
+    _authorize_api_request(x_saathi_api_key)
+    household_id = _authorize_household_context(None, x_saathi_verified_household, x_saathi_verified_identity)
+    if not household_id:
+        raise HTTPException(status_code=401, detail="verified_phone_identity_required")
+    try:
+        closed = await SupabaseVolunteerCaseRepository().close(household_id=household_id, case_id=payload.case_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail="invalid_help_case_id") from exc
+    except SupabaseRepositoryError as exc:
+        raise HTTPException(status_code=503, detail="household_help_case_close_failed") from exc
+    if not closed:
+        raise HTTPException(status_code=404, detail="household_help_case_not_found")
+    return {"case_id": payload.case_id, "status": "closed"}
 
 
 @app.get("/api/v1/household/tasks")
