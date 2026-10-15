@@ -2,7 +2,7 @@
 
 Last verified: 2026-10-15 UTC
 
-- Main baseline for this branch: `fb795e62f5dbaaf6d57ef150e2877382c8a32655` after PR #64.
+- Main baseline for this branch: `edd5164fc406b87a5ab811d9746ad21e7e4c1d1f` after PR #66 (reproducible frontend lockfile and `npm ci`).
 - P0/P1 API proxy and source freshness: [PR #57](https://github.com/kaustubhdua/Saathi/pull/57), merged.
 - Household identity fail-closed guard: [PR #59](https://github.com/kaustubhdua/Saathi/pull/59), merged.
 - Telephony callback lifecycle and live-call safety gate: [PR #61](https://github.com/kaustubhdua/Saathi/pull/61), merged.
