@@ -1,6 +1,6 @@
 import { isAuthRateLimited } from "../../../../lib/auth-rate-limit.mjs";
 import { createSupabaseServerClient } from "../../../../lib/supabase/server";
-import { readBoundedJson } from "../../../../lib/auth-request";
+import { readBoundedJson } from "../../../../lib/auth-request.mjs";
 
 function validOrigin(request: Request) {
   const origin = request.headers.get("origin");
