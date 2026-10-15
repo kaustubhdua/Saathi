@@ -160,7 +160,7 @@ export async function proxyRequest(request, segments = [], options = {}) {
   let body;
   if (!readOnly) {
     const contentType = request.headers.get("content-type") || "";
-    if (policy.kind === "json" && !contentType.toLowerCase().startsWith("application/json")) return errorResponse(415, "application_json_required");
+    if (["json", "consent", "task", "task_status", "memory", "memory_delete"].includes(policy.kind) && !contentType.toLowerCase().startsWith("application/json")) return errorResponse(415, "application_json_required");
     if (policy.kind === "multipart" && (!contentType.toLowerCase().startsWith("multipart/form-data;") || !contentType.toLowerCase().includes("boundary="))) return errorResponse(415, "multipart_form_data_required");
     try { body = await readBoundedBody(request, policy.maxBytes, policy.timeoutMs); }
     catch (error) { return errorResponse(error?.status || 400, error?.message || "invalid_request_body"); }
