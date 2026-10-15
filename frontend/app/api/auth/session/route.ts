@@ -7,6 +7,7 @@ export async function GET() {
   const user = !error ? data.user : null;
   const phone = user?.phone_confirmed_at && user.phone ? user.phone : null;
   return Response.json({
+    authConfigured: true,
     authenticated: Boolean(user),
     phoneVerified: Boolean(phone),
     phoneSuffix: phone ? phone.slice(-4) : null,
