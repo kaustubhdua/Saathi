@@ -17,6 +17,7 @@ type ReadyCapabilities = { core_agent?: boolean; telephony?: boolean; telephony_
 type ConsentSnapshot = { memory: { granted: boolean; recorded_at: string | null }; outbound_calls: { granted: boolean; recorded_at: string | null } };
 type HouseholdTask = { task_id: string; title: string; status: "pending" | "completed" | "cancelled" | "escalated"; missing_items: string[]; scheduled_callback: string | null };
 type HouseholdMemory = { memory_id: string; memory_type: string; key_name: string; value_text: string; source: "user_confirmed" | string; updated_at: string | null; expires_at: string | null };
+type HouseholdHelpCase = { case_id: string; status: "open" | "assigned" | "in_progress" | "resolved" | "closed"; priority: string; summary: string; created_at: string | null; updated_at: string | null; resolved_at: string | null };
 
 type BrowserSpeechRecognition = {
   lang: string;
@@ -96,6 +97,11 @@ export default function Dashboard() {
   const [taskBusy, setTaskBusy] = useState(false);
   const [taskError, setTaskError] = useState<string | null>(null);
   const [taskMessage, setTaskMessage] = useState<string | null>(null);
+  const [helpCases, setHelpCases] = useState<HouseholdHelpCase[] | null>(null);
+  const [helpSummary, setHelpSummary] = useState("");
+  const [helpBusy, setHelpBusy] = useState(false);
+  const [helpError, setHelpError] = useState<string | null>(null);
+  const [helpMessage, setHelpMessage] = useState<string | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -218,12 +224,32 @@ export default function Dashboard() {
       setMemoryError(null);
       setHouseholdTasks(null);
       setTaskTitle("");
+      setHelpCases(null);
+      setHelpSummary("");
+      setHelpMessage(null);
+      setHelpError(null);
       setTaskMessage(null);
       setTaskError(null);
     } catch (cause) {
       setConsentError(cause instanceof Error ? cause.message : "Sign out could not be completed. Please retry.");
     }
   };
+
+  useEffect(() => {
+    if (!authStatus.householdReady) return;
+    const controller = new AbortController();
+    fetch("/backend/api/v1/household/help-cases", { signal: controller.signal, cache: "no-store" })
+      .then(async (response) => {
+        const body = await response.json();
+        if (!response.ok || !Array.isArray(body.cases)) throw new Error(body.detail || "Human-help requests are unavailable.");
+        setHelpCases(body.cases);
+        setHelpError(null);
+      })
+      .catch((cause) => {
+        if (!controller.signal.aborted) setHelpError(cause instanceof Error ? cause.message : "Human-help requests are unavailable.");
+      });
+    return () => controller.abort();
+  }, [authStatus.householdReady]);
 
   const saveHouseholdMemory = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -268,6 +294,52 @@ export default function Dashboard() {
       setMemoryError(cause instanceof Error ? cause.message : "Memory could not be deleted.");
     } finally {
       setMemoryBusy(false);
+    }
+  };
+
+  const createHelpCase = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const summary = helpSummary.trim();
+    if (!summary || !authStatus.householdReady) return;
+    setHelpBusy(true);
+    setHelpError(null);
+    setHelpMessage(null);
+    try {
+      const response = await fetch("/backend/api/v1/household/help-cases", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ summary }),
+      });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.detail || "Human-help request could not be saved.");
+      setHelpCases((current) => [body as HouseholdHelpCase, ...(current || []).filter((item) => item.case_id !== body.case_id)]);
+      setHelpSummary("");
+      setHelpMessage("Request recorded. No volunteer has been assigned or notified by this prototype.");
+    } catch (cause) {
+      setHelpError(cause instanceof Error ? cause.message : "Human-help request could not be saved.");
+    } finally {
+      setHelpBusy(false);
+    }
+  };
+
+  const closeHelpCase = async (caseId: string) => {
+    setHelpBusy(true);
+    setHelpError(null);
+    setHelpMessage(null);
+    try {
+      const response = await fetch("/backend/api/v1/household/help-cases/close", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ case_id: caseId }),
+      });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.detail || "Human-help request could not be closed.");
+      setHelpCases((current) => (current || []).filter((item) => item.case_id !== caseId));
+      setHelpMessage("Human-help request closed.");
+    } catch (cause) {
+      setHelpError(cause instanceof Error ? cause.message : "Human-help request could not be closed.");
+    } finally {
+      setHelpBusy(false);
     }
   };
 
