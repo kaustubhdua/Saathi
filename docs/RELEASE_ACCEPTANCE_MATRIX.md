@@ -46,10 +46,10 @@ This is an evidence ledger, not a declaration that release gates have passed. Au
 - Do not deploy Vercel before 2026-10-24.
 
 
-## Pending candidate — PR #64
+## Merged change — PR #64
 
 | Gate | Candidate status | Required next evidence |
 |---|---|---|
-| Shared production rate limit | Code and regression tests in PR #64; CI pending | All exact-head CI jobs green; verify Upstash and trusted-IP header in the deployment environment before enabling production |
-| Local limiter memory bound | Regression test added for 2,500 unique IPs and malformed-header collapse | Exact-head frontend test suite green |
+| Shared production rate limit | Merged as `fb795e62f5dbaaf6d57ef150e2877382c8a32655`; run #796 passed all five jobs on PR head `b6820fae1e7fbf70cebc931eb3647abdf864a293` | All exact-head CI jobs green; verify Upstash and trusted-IP header in the deployment environment before enabling production |
+| Local limiter memory bound | Merged; frontend test suite passed in run #796 | Exact-head frontend test suite green |
 | Live shared-store behavior | Not verified | Authorized non-production Redis test with redacted evidence; no credentials in Git or chat |
