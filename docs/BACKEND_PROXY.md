@@ -11,7 +11,7 @@ The dashboard uses same-origin `/backend/*` routes. The Next.js Node route forwa
 
 ## Boundaries
 
-- Only `GET /health/ready`, `GET /health/live`, `POST /api/v1/agent`, `POST /api/v1/voice/turn`, and authenticated `GET/POST /api/v1/household/consent` are exposed.
+- Only `GET /health/ready`, `GET /health/live`, `POST /api/v1/agent`, `POST /api/v1/voice/turn`, authenticated `GET/POST /api/v1/household/consent`, authenticated `GET/POST /api/v1/household/tasks`, authenticated `POST /api/v1/household/tasks/status`, authenticated `GET/POST /api/v1/household/memories`, and authenticated `POST /api/v1/household/memories/delete` are exposed.
 - The proxy rejects browser-supplied household identifiers, checks mutation origins when present, bounds request-body size and read time, rejects redirects, uses no-store responses, and includes a best-effort per-process rate limit.
 - Text requests are limited to 64 KiB; voice uploads are limited to 10 MiB. Upstream calls have bounded timeouts.
 - Production requires `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`, and `SAATHI_TRUSTED_CLIENT_IP_HEADER`. The configured URL must be an HTTPS `*.upstash.io` origin with no custom port, credentials, path, query or fragment. The chosen header must be a single IP address and must be documented/configured by the hosting platform to be overwritten; the app does not trust `X-Forwarded-For` chains by default.
@@ -43,3 +43,8 @@ The automated proxy tests stub Redis and the API separately. They cover missing 
 - `SUPABASE_URL` and `SUPABASE_SECRET_KEY` are server-only. The secret key must never use a `NEXT_PUBLIC_*` name and must never be serialized to a browser response.
 - Enable Supabase Phone Auth and configure SMS delivery in the project dashboard. This repository cannot provision the provider or prove delivery.
 - OTP send/verify limits in this code are process-local defense in depth. Supabase Auth rate limits and an edge/shared limiter remain required.
+
+
+## Household workflow routes
+
+Task reads and updates are scoped to the server-verified household; idempotency-conflict recovery must also filter by household and reject any mismatched response. Memory reads/writes require persisted memory consent, and the database guard independently rejects writes that race with revocation. Memory values are stored only when explicitly submitted by the user; automatic conversation extraction is not enabled. Reminder dispatch and volunteer delivery remain unavailable and must not be presented as active.

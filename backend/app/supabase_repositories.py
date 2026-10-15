@@ -282,11 +282,14 @@ class SupabaseTaskRepository(_SupabaseRepository):
                 raise
             rows = await self._request(
                 "GET",
-                f"saathi_pending_tasks?idempotency_key=eq.{idempotency_key}&select=id,household_id,title,status,missing_requirements,scheduled_callback",
+                f"saathi_pending_tasks?household_id=eq.{household_uuid}&idempotency_key=eq.{idempotency_key}&select=id,household_id,title,status,missing_requirements,scheduled_callback",
             )
         if not rows:
             raise SupabaseRepositoryError("task_create_failed")
-        return self._to_task(rows[0])
+        task = self._to_task(rows[0])
+        if task.household_id != household_uuid:
+            raise SupabaseRepositoryError("task_household_mismatch")
+        return task
 
     async def list_open(self, *, household_id: str) -> list[Task]:
         household_uuid = self._uuid(household_id)
@@ -294,7 +297,10 @@ class SupabaseTaskRepository(_SupabaseRepository):
             "GET",
             f"saathi_pending_tasks?household_id=eq.{household_uuid}&status=eq.pending&select=id,household_id,title,status,missing_requirements,scheduled_callback&order=created_at.desc",
         )
-        return [self._to_task(row) for row in rows]
+        tasks = [self._to_task(row) for row in rows]
+        if any(task.household_id != household_uuid for task in tasks):
+            raise SupabaseRepositoryError("task_household_mismatch")
+        return tasks
 
     async def set_status(self, *, household_id: str, task_id: str, status: TaskStatus) -> Task:
         household_uuid = self._uuid(household_id)
@@ -306,7 +312,10 @@ class SupabaseTaskRepository(_SupabaseRepository):
         )
         if not rows:
             raise KeyError("task_not_found")
-        return self._to_task(rows[0])
+        task = self._to_task(rows[0])
+        if task.household_id != household_uuid:
+            raise SupabaseRepositoryError("task_household_mismatch")
+        return task
 
 
 class SupabaseCallRepository(_SupabaseRepository):

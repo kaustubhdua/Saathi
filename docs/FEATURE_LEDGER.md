@@ -34,6 +34,12 @@ Last verified: 2026-10-15 UTC
 - The feature requires public `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (or the existing public anon key), plus server-only `SUPABASE_URL` and `SUPABASE_SECRET_KEY`. Never expose the secret key through `NEXT_PUBLIC_*`.
 - The authentication rate limiter rejects missing, malformed or comma-separated trusted client IP values in production before any Upstash request; development retains a local fallback and caps bucket storage at 5,000 entries. The household enrollment flow also isolates concurrent phone-number uniqueness conflicts rather than adopting an existing household. Both fixes and regression tests are now committed to this auth branch; exact-head CI is required before the candidate is considered review-ready.
 
+## Candidate integration — household tasks and explicit memory
+
+- Task and memory API/UI changes from PRs #71/#72 have been ported onto the current authentication branch. Exact-head CI run #873 passed all five jobs on `349c0de31ad5a4cc01b7111d9b038d8f6a31f11b`; this remains a draft branch, not main or production.
+- Task list/create/status routes use verified household context; idempotency-conflict recovery is additionally household-filtered and rejects mismatched rows. Automatic reminder dispatch and callback delivery remain disabled.
+- Memory list/write/delete routes require current persisted memory consent and explicit user input; automatic conversation extraction is not connected. Database trigger behavior and revocation races still require isolated live-database acceptance.
+
 ## Other partial implementation
 
 - Scheme catalogue data carries reviewed/stale/unknown freshness rather than a false live retrieval timestamp. Eligibility and deadlines still need official portal verification.
