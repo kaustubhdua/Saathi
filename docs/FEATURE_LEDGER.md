@@ -8,7 +8,7 @@ Last verified: 2026-10-15 UTC
 - Telephony callback lifecycle and live-call safety gate: [PR #61](https://github.com/kaustubhdua/Saathi/pull/61), merged.
 - Dashboard keyboard accessibility and truthful status labels: [PR #63](https://github.com/kaustubhdua/Saathi/pull/63), merged.
 - Shared production rate limiting: [PR #64](https://github.com/kaustubhdua/Saathi/pull/64), merged; production requires configured Upstash Redis and a trusted single-IP header.
-- Phone OTP identity and purpose-specific household consent: [PR #65](https://github.com/kaustubhdua/Saathi/pull/65), draft pending CI and migration dependency.
+- Phone OTP identity, household PIN and purpose-specific consent: [PR #70](https://github.com/kaustubhdua/Saathi/pull/70), draft; automated CI has passed on the current code candidate, while migration and live-provider gates remain.
 - Migration quarantine/index proposal: [PR #58](https://github.com/kaustubhdua/Saathi/pull/58), draft; do not merge until all environments' migration histories are reconciled.
 - [Release acceptance matrix](RELEASE_ACCEPTANCE_MATRIX.md)
 - [Provider verification plan](PROVIDER_VERIFICATION.md)
@@ -23,7 +23,7 @@ Last verified: 2026-10-15 UTC
 - PR #63 merged after frontend accessibility contract tests and full CI passed.
 - PR #64 merged after CI run #796 passed. Production API requests now fail closed unless shared Upstash rate limiting and a trusted single-IP header are configured. The Upstash credentials and hosting-header behavior have not been verified in a live deployment.
 
-## Partial — PR #65 pending CI, migration and provider configuration
+## Partial — PR #70 pending migration and provider configuration
 
 - Supabase SSR phone OTP login routes and an accessible login page are added. SMS delivery requires enabling Supabase Phone Auth and configuring the SMS provider in the project dashboard.
 - The server verifies the Supabase user and confirmed E.164 phone, then maps the immutable Supabase Auth user ID through the proposed `saathi_household_memberships` table. A phone number alone never grants access, avoiding recycled-number takeover.
@@ -50,7 +50,7 @@ Last verified: 2026-10-15 UTC
 
 ## Next actions
 
-1. Finish CI on PR #65 and fix all failures. Keep it draft until the membership migration can be safely activated after PR #58 is reconciled.
+1. Keep PR #70 draft until the membership migration can be safely activated after PR #58 is reconciled; rerun CI after every code change.
 2. Configure Supabase Phone Auth and SMS delivery, then verify OTP, session refresh, sign-out, first-household creation, phone-number recycling isolation and consent behavior against an isolated test household.
 3. Prove memory consent/revocation through the actual repository and database trigger; connect memory writes only after identity and consent tests pass.
 4. Keep PR #58 draft until migration history is reconciled across environments; do not apply live DDL before approval.
