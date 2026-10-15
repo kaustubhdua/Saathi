@@ -8,8 +8,10 @@ const POLICIES = {
   "api/v1/household/consent": { method: "POST", kind: "consent", maxBytes: 4096, timeoutMs: 8_000 },
   "api/v1/household/tasks": { method: "POST", kind: "task", maxBytes: 8192, timeoutMs: 8_000 },
   "api/v1/household/tasks/status": { method: "POST", kind: "task_status", maxBytes: 4096, timeoutMs: 8_000 },
+  "api/v1/household/memories": { method: "POST", kind: "memory", maxBytes: 8192, timeoutMs: 8_000 },
+  "api/v1/household/memories/delete": { method: "POST", kind: "memory_delete", maxBytes: 4096, timeoutMs: 8_000 },
 };
-const READ_ROUTES = new Set(["health/ready", "health/live", "api/v1/household/consent", "api/v1/household/tasks"]);
+const READ_ROUTES = new Set(["health/ready", "health/live", "api/v1/household/consent", "api/v1/household/tasks", "api/v1/household/memories"]);
 const buckets = new Map();
 const WINDOW_MS = 60_000;
 const REQUEST_LIMIT = 30;
@@ -126,7 +128,7 @@ export async function proxyRequest(request, segments = [], options = {}) {
   const readOnly = READ_ROUTES.has(path) && method === "GET";
   const policy = POLICIES[path];
   if (!readOnly && (!policy || policy.method !== method)) return errorResponse(404, "route_not_allowed");
-  if (["api/v1/household/consent", "api/v1/household/tasks", "api/v1/household/tasks/status"].includes(path) && !verifiedContext) return errorResponse(401, "verified_phone_identity_required");
+  if (["api/v1/household/consent", "api/v1/household/tasks", "api/v1/household/tasks/status", "api/v1/household/memories", "api/v1/household/memories/delete"].includes(path) && !verifiedContext) return errorResponse(401, "verified_phone_identity_required");
   if (verifiedContext && (!/^[0-9a-f-]{36}$/i.test(verifiedContext.identityId) || !/^[0-9a-f-]{36}$/i.test(verifiedContext.householdId))) return errorResponse(403, "invalid_verified_household_context");
   const env = process.env;
   const rateKey = `${method}:${path}:${clientIp(request, env)}`;
@@ -162,7 +164,7 @@ export async function proxyRequest(request, segments = [], options = {}) {
     if (policy.kind === "multipart" && (!contentType.toLowerCase().startsWith("multipart/form-data;") || !contentType.toLowerCase().includes("boundary="))) return errorResponse(415, "multipart_form_data_required");
     try { body = await readBoundedBody(request, policy.maxBytes, policy.timeoutMs); }
     catch (error) { return errorResponse(error?.status || 400, error?.message || "invalid_request_body"); }
-    if (["json", "consent", "task", "task_status"].includes(policy.kind)) {
+    if (["json", "consent", "task", "task_status", "memory", "memory_delete"].includes(policy.kind)) {
       let parsed;
       try { parsed = JSON.parse(body.toString("utf8")); } catch { return errorResponse(400, "invalid_json"); }
       if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return errorResponse(400, "json_object_required");
@@ -183,9 +185,17 @@ export async function proxyRequest(request, segments = [], options = {}) {
           missing_items: (parsed.missing_items || []).map((item) => item.trim()).filter(Boolean),
           ...(parsed.idempotency_key ? { idempotency_key: parsed.idempotency_key } : {}),
         }));
-      } else {
+      } else if (policy.kind === "task_status") {
         if (typeof parsed.task_id !== "string" || !/^[0-9a-f-]{36}$/i.test(parsed.task_id) || !["completed", "cancelled"].includes(parsed.status)) return errorResponse(422, "valid_task_status_update_required");
         body = Buffer.from(JSON.stringify({ task_id: parsed.task_id, status: parsed.status }));
+      } else if (policy.kind === "memory") {
+        if (typeof parsed.memory_type !== "string" || !parsed.memory_type.trim() || parsed.memory_type.trim().length > 80) return errorResponse(422, "valid_memory_type_required");
+        if (typeof parsed.key_name !== "string" || !parsed.key_name.trim() || parsed.key_name.trim().length > 120) return errorResponse(422, "valid_memory_key_required");
+        if (typeof parsed.value_text !== "string" || !parsed.value_text.trim() || parsed.value_text.trim().length > 2000) return errorResponse(422, "valid_memory_value_required");
+        body = Buffer.from(JSON.stringify({ memory_type: parsed.memory_type.trim(), key_name: parsed.key_name.trim(), value_text: parsed.value_text.trim() }));
+      } else {
+        if (typeof parsed.memory_id !== "string" || !/^[0-9a-f-]{36}$/i.test(parsed.memory_id)) return errorResponse(422, "valid_memory_id_required");
+        body = Buffer.from(JSON.stringify({ memory_id: parsed.memory_id }));
       }
       headers.set("Content-Type", "application/json");
     } else {
