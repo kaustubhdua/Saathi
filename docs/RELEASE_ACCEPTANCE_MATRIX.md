@@ -10,6 +10,7 @@ This is an evidence ledger, not a declaration that release gates have passed. Au
 - PR #57 (API proxy/source freshness), #59 (identity fail-closed guard), #61 (telephony callback state handling), #63 (dashboard accessibility) and #64 (shared production rate limiting) are merged.
 - PR #68 implements phone OTP, household PIN, consent, household task APIs and explicit user-entered memory. Exact-head CI run #886 passed all five jobs on `edc29b1a7bcbff78f0e86e584ff688911fff7dd2`, including regression tests for the active consent-locking migration.
 - Trusted-IP validation, bounded development limiter storage and phone-enrollment collision isolation have regression coverage. Live Auth/SMS and migration activation remain outstanding.
+- Read-only live verification found six recorded Saathi migrations, including `saathi_memory_consent_locking`, eight Saathi tables with RLS enabled, and no `saathi_household_memberships` table. Authenticated household actions therefore remain fail-closed until the membership migration is approved and applied safely.
 - PR #58 remains draft because other environments' migration histories are not verified; its latest exact-head CI run #840 passed all five jobs.
 - Production Vercel configuration/deployment remains deferred until 2026-10-24.
 - No live provider test, live database DDL, or production deployment is claimed here.
