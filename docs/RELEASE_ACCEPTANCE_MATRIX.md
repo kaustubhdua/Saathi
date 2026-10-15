@@ -1,6 +1,6 @@
 # Saathi release acceptance matrix
 
-Last updated: 2026-10-16 UTC
+Last updated: 2026-10-15 UTC (2026-10-16 IST)
 
 This is an evidence ledger, not a declaration that release gates have passed. Automated CI and manual/live-provider acceptance are tracked separately. A checked item must link to reproducible evidence for the exact candidate SHA.
 
@@ -62,6 +62,6 @@ This is an evidence ledger, not a declaration that release gates have passed. Au
 - GitHub Actions run #809 passed all five jobs on candidate SHA `b08cb8c410413c41c963ceab3464420013cb7f5b`, including lockfile integrity, `npm ci`, lint, tests, TypeScript, build, dashboard smoke and dependency audit. Live provider/production verification remains separate.
 
 
-## Sprint 27 verification note — 2026-10-16
+## Sprint 27 verification note — 2026-10-16 IST / 2026-10-15 UTC
 
-The demo telephony fail-closed change is committed on `fix/dashboard-fail-closed-agent-errors`, but exact-head CI is pending. The last green run #954 is for the preceding SHA, not this change. Do not mark the telephony gate complete based on unit tests or build CI alone; live provider acceptance and callback authentication require separate sandbox evidence.
+The demo telephony fail-closed change is committed on `fix/dashboard-fail-closed-agent-errors`. Exact-head CI run [#957](https://github.com/kaustubhdua/Saathi/actions/runs/38812480101) passed all five jobs on SHA `4f1133b3dcd94914a33ec2b73b40add64991143e`. This establishes automated CI only, not real provider acceptance. The documentation update itself will trigger a fresh CI run. Do not mark the telephony gate complete until live provider acceptance and callback authentication have separate sandbox evidence.
