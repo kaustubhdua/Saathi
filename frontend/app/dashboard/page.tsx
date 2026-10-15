@@ -16,6 +16,7 @@ type Evidence = { name: string; url: string; retrieved_at?: string | null; fresh
 type ReadyCapabilities = { core_agent?: boolean; telephony?: boolean; telephony_realtime?: boolean; reasoning?: boolean; mandi?: boolean; speech?: boolean; weather?: boolean; documents?: boolean };
 type ConsentSnapshot = { memory: { granted: boolean; recorded_at: string | null }; outbound_calls: { granted: boolean; recorded_at: string | null } };
 type HouseholdTask = { task_id: string; title: string; status: "pending" | "completed" | "cancelled" | "escalated"; missing_items: string[]; scheduled_callback: string | null };
+type HouseholdMemory = { memory_id: string; memory_type: string; key_name: string; value_text: string; source: "user_confirmed" | string; updated_at: string | null; expires_at: string | null };
 
 type BrowserSpeechRecognition = {
   lang: string;
@@ -83,6 +84,13 @@ export default function Dashboard() {
   const [consentBusy, setConsentBusy] = useState(false);
   const [consentMessage, setConsentMessage] = useState<string | null>(null);
   const [consentError, setConsentError] = useState<string | null>(null);
+  const [householdMemories, setHouseholdMemories] = useState<HouseholdMemory[] | null>(null);
+  const [memoryType, setMemoryType] = useState("preference");
+  const [memoryKey, setMemoryKey] = useState("");
+  const [memoryValue, setMemoryValue] = useState("");
+  const [memoryBusy, setMemoryBusy] = useState(false);
+  const [memoryError, setMemoryError] = useState<string | null>(null);
+  const [memoryMessage, setMemoryMessage] = useState<string | null>(null);
   const [householdTasks, setHouseholdTasks] = useState<HouseholdTask[] | null>(null);
   const [taskTitle, setTaskTitle] = useState("");
   const [taskBusy, setTaskBusy] = useState(false);
@@ -126,6 +134,7 @@ export default function Dashboard() {
         const body = await response.json();
         if (!response.ok) throw new Error(body.detail || "Consent status is unavailable.");
         setConsentStatus(body);
+        if (body.memory?.granted !== true) setHouseholdMemories(null);
         setConsentError(null);
       })
       .catch((cause) => {
@@ -133,6 +142,22 @@ export default function Dashboard() {
       });
     return () => controller.abort();
   }, [authStatus.householdReady]);
+
+  useEffect(() => {
+    if (!authStatus.householdReady || consentStatus?.memory.granted !== true) return;
+    const controller = new AbortController();
+    fetch("/backend/api/v1/household/memories", { signal: controller.signal, cache: "no-store" })
+      .then(async (response) => {
+        const body = await response.json();
+        if (!response.ok || !Array.isArray(body.memories)) throw new Error(body.detail || "Saved memories are unavailable.");
+        setHouseholdMemories(body.memories);
+        setMemoryError(null);
+      })
+      .catch((cause) => {
+        if (!controller.signal.aborted) setMemoryError(cause instanceof Error ? cause.message : "Saved memories are unavailable.");
+      });
+    return () => controller.abort();
+  }, [authStatus.householdReady, consentStatus?.memory.granted]);
 
   useEffect(() => {
     if (!authStatus.householdReady) return;
@@ -166,6 +191,7 @@ export default function Dashboard() {
       const statusBody = await statusResponse.json();
       if (!statusResponse.ok) throw new Error(statusBody.detail || "Consent status could not be refreshed.");
       setConsentStatus(statusBody);
+      if (purpose === "memory" && !granted) setHouseholdMemories(null);
       setConsentMessage(purpose === "memory"
         ? (granted ? "Household memory consent saved." : "Household memory consent revoked; stored memory is purged by the database guard.")
         : (granted ? "Outbound-call consent saved. This does not place a call." : "Outbound-call consent revoked."));
@@ -185,12 +211,63 @@ export default function Dashboard() {
       setAuthStatus((current) => ({ ...current, loading: false, phoneSuffix: null, householdReady: false }));
       setConsentStatus(null);
       setConsentMessage(null);
+      setHouseholdMemories(null);
+      setMemoryKey("");
+      setMemoryValue("");
+      setMemoryMessage(null);
+      setMemoryError(null);
       setHouseholdTasks(null);
       setTaskTitle("");
       setTaskMessage(null);
       setTaskError(null);
     } catch (cause) {
       setConsentError(cause instanceof Error ? cause.message : "Sign out could not be completed. Please retry.");
+    }
+  };
+
+  const saveHouseholdMemory = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!authStatus.householdReady || consentStatus?.memory.granted !== true) return;
+    setMemoryBusy(true);
+    setMemoryError(null);
+    setMemoryMessage(null);
+    try {
+      const response = await fetch("/backend/api/v1/household/memories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ memory_type: memoryType.trim(), key_name: memoryKey.trim(), value_text: memoryValue.trim() }),
+      });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.detail || "Memory could not be saved.");
+      setHouseholdMemories((current) => [body as HouseholdMemory, ...(current || []).filter((item) => !(item.memory_type === body.memory_type && item.key_name === body.key_name))]);
+      setMemoryKey("");
+      setMemoryValue("");
+      setMemoryMessage("Saved only because you explicitly confirmed it.");
+    } catch (cause) {
+      setMemoryError(cause instanceof Error ? cause.message : "Memory could not be saved.");
+    } finally {
+      setMemoryBusy(false);
+    }
+  };
+
+  const deleteHouseholdMemory = async (memoryId: string) => {
+    setMemoryBusy(true);
+    setMemoryError(null);
+    setMemoryMessage(null);
+    try {
+      const response = await fetch("/backend/api/v1/household/memories/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ memory_id: memoryId }),
+      });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.detail || "Memory could not be deleted.");
+      setHouseholdMemories((current) => (current || []).filter((item) => item.memory_id !== memoryId));
+      setMemoryMessage("Saved memory deleted.");
+    } catch (cause) {
+      setMemoryError(cause instanceof Error ? cause.message : "Memory could not be deleted.");
+    } finally {
+      setMemoryBusy(false);
     }
   };
 
