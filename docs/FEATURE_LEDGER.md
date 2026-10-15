@@ -82,5 +82,5 @@ Last verified: 2026-10-15 UTC (2026-10-16 IST)
 - The voice endpoint now normalizes MIME types with codec parameters (for example, `audio/webm;codecs=opus`) before allowlist comparison, while still requiring an explicit supported audio type.
 - After the existing bounded 8 MB read, WAV uploads must have a RIFF/WAVE container signature and WebM uploads must have the EBML header. A spoofed MIME/header mismatch returns HTTP 415 before bytes reach STT/TTS providers.
 - Regression coverage checks malformed WebM, malformed WAV, and cross-container MIME spoofing; the provider is patched to fail if invalid media reaches it.
-- Exact-head CI for this new voice validation is pending; the preceding SHA's green run does not verify these changes. No provider call, database write, or deployment was performed.
+- Initial exact-head CI run #963 found one expected-contract regression in `tests/test_health.py`: the existing provider-gating test did not allow the new explicit HTTP 415 for malformed audio. Updated the test to accept the intentional rejection; 174 other tests passed in that run. A fresh exact-head run is pending. No provider call, database write, or deployment was performed.
 - Remaining: add bounded request-level timeout/cancellation and confirm browser-produced media fixtures against real low-end Android capture before enabling any live provider path.
