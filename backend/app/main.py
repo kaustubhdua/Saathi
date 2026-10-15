@@ -391,8 +391,9 @@ async def place_outbound_call(
     if not digits.isdigit() or not 8 <= len(digits) <= 15:
         raise HTTPException(status_code=422, detail="invalid_phone_number")
     if settings.demo_mode and settings.app_env.lower() != "production":
-        emit_event("call.demo", channel="exotel", realtime=payload.realtime_voice_ai)
-        return {"status": "demo", "call_id": "demo-call-accepted", "provider": "exotel", "realtime": payload.realtime_voice_ai}
+        # Never imply that a phone call was accepted when no provider was contacted.
+        emit_event("call.unavailable", channel="exotel", realtime=payload.realtime_voice_ai)
+        raise HTTPException(status_code=503, detail="telephony_unavailable_in_demo_mode")
     token = authorization.removeprefix("Bearer ").strip() if authorization else ""
     if not settings.call_api_token or not compare_digest(token, settings.call_api_token):
         raise HTTPException(status_code=401, detail="call_api_unauthorized")
