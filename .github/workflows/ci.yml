@@ -60,6 +60,13 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package.json
       - run: npm install
+      - name: Export temporary frontend lockfile candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: saathi-frontend-lockfile-candidate
+          path: frontend/package-lock.json
+          if-no-files-found: error
+          retention-days: 1
       - run: npm run lint
       - run: node --test tests/*.test.mjs
       - run: npx tsc --noEmit
