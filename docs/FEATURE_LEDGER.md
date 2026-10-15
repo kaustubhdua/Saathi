@@ -64,3 +64,5 @@ Last verified: 2026-10-15 UTC
 - Regression coverage: `frontend/tests/agent-error-contract.test.mjs` checks timeout/abort wiring, malformed response rejection, stale-result clearing, accessible error state, retry control, and absence of the previous fabricated-result pattern.
 - Verification: source changes committed on the feature branch. Full lockfile install, lint, TypeScript, build, and GitHub Actions have not yet been run against this branch; do not treat this item as release-verified until CI passes.
 - Production: not deployed; deployed SHA and real backend journey remain unverified. No database or provider configuration changed.
+
+- CI verification update (2026-10-16): GitHub Actions run [#953](https://github.com/kaustubhdua/Saathi/actions/runs/38804190786) completed successfully on PR head `5f58b25d84296c059aab5fcb54f5b516a2036b5e`. All five jobs passed: backend pytest/API smoke, frontend `npm ci`/lint/regression tests/TypeScript/build/dashboard smoke, Streamlit smoke, dependency audit, and Docker build. This verifies the candidate code at that SHA, not production behavior. Any subsequent commit requires a fresh exact-head CI result.
