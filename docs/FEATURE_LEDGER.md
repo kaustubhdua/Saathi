@@ -22,7 +22,7 @@ Last verified: 2026-10-15 UTC
 - PR #61 merged after exact-head CI run #782 passed all five jobs. Webhook processing uses body-derived idempotency, monotonic call-state transitions and a server-configured callback URL. Live outbound calls fail closed until the actual callback authentication contract is verified.
 - PR #63 merged after CI passed. Scenario tabs support keyboard navigation; voice/API/answer state is announced; the UI no longer claims consent was collected before it is.
 
-## Partial — PR #64 pending CI and provider configuration
+## Partial — PR #65 pending CI, migration and provider configuration
 
 - Supabase SSR phone OTP login routes and a login page are added. SMS delivery still requires enabling Supabase Phone Auth and configuring the SMS provider in the project dashboard.
 - The server verifies the Supabase user and confirmed E.164 phone, then maps the immutable Supabase Auth user ID through the proposed `saathi_household_memberships` table; a phone number alone never grants access. First-login household rows start with memory and outbound-call consent disabled. The membership migration remains proposed until PR #58 migration-history reconciliation is approved.
@@ -47,7 +47,7 @@ Last verified: 2026-10-15 UTC
 
 ## Next actions
 
-1. Finish CI on PR #64; fix any frontend TypeScript/build, backend, or proxy test failures before merge.
+1. Finish CI on PR #65; fix any frontend TypeScript/build, backend, or proxy test failures before review. Keep it draft until the proposed membership migration can be safely activated after PR #58.
 2. Configure Supabase Phone Auth and SMS delivery, then verify OTP, session refresh, sign-out, first-household creation and purpose-specific consent against an isolated test household.
 3. Prove memory consent/revocation through the actual repository and database trigger; connect memory writes only after identity and consent tests pass.
 4. Keep PR #58 draft until migration history is reconciled across environments; do not apply live DDL before approval.
