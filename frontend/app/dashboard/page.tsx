@@ -113,10 +113,7 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
-    if (!authStatus.householdReady) {
-      setConsentStatus(null);
-      return;
-    }
+    if (!authStatus.householdReady) return;
     const controller = new AbortController();
     fetch("/backend/api/v1/household/consent", { signal: controller.signal, cache: "no-store" })
       .then(async (response) => {
