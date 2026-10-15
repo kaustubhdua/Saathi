@@ -6,9 +6,9 @@ This is an evidence ledger, not a declaration that release gates have passed. Au
 
 ## Current baseline
 
-- Main baseline for this branch: `fb795e62f5dbaaf6d57ef150e2877382c8a32655` after PR #64.
+- Main baseline for this branch: `edd5164fc406b87a5ab811d9746ad21e7e4c1d1f` after PR #66 (reproducible frontend lockfile and `npm ci`).
 - PR #57 (API proxy/source freshness), #59 (identity fail-closed guard), #61 (telephony callback state handling), #63 (dashboard accessibility) and #64 (shared production rate limiting) are merged.
-- PR #65 proposes phone OTP, user-to-household mapping and consent workflows; CI, migration activation and live Auth/SMS tests remain outstanding.
+- PR #70 adds phone OTP, household PIN, user-to-household mapping and consent workflows. CI passes on the code candidate; migration activation and live Auth/SMS tests remain outstanding.
 - PR #58 remains draft because other environments' migration histories are not verified.
 - Production Vercel configuration/deployment remains deferred until 2026-10-24.
 - No live provider test, live database DDL, or production deployment is claimed here.
@@ -20,8 +20,8 @@ This is an evidence ledger, not a declaration that release gates have passed. Au
 | 1 | Browser API requests use the same-origin allowlisted proxy; server token never enters browser bundles | CODE + CI | PR #57 merged; inspect production build/environment and run hosted request tests |
 | 2 | Production readiness fails when operator auth is absent | CODE + CI | Backend tests pass; verify real deployment configuration |
 | 3 | Production API traffic uses shared rate limiting and trusted client IP | CODE; DEPLOYMENT BLOCKED | PR #64 merged; configure Upstash credentials and verify hosting overwrites the trusted single-IP header |
-| 4 | Verified identity maps to a household; caller-supplied UUID cannot select another household | PARTIAL — PR #65 draft | Phone OTP code is proposed; review/apply auth-user membership migration after PR #58 reconciliation, then test number-recycling isolation |
-| 5 | Consent grant/status/revocation are persisted and identity-bound | PARTIAL — PR #65 draft | Consent UI/API added; verify real Supabase Auth, household mapping and persistence in an isolated test household |
+| 4 | Verified identity maps to a household; caller-supplied UUID cannot select another household | PARTIAL — PR #70 draft | Phone OTP and household PIN code are present; review/apply auth-user membership migration after PR #58 reconciliation, then test number-recycling isolation |
+| 5 | Consent grant/status/revocation are persisted and identity-bound | PARTIAL — PR #65 draft | Consent UI/API added in PR #70; verify real Supabase Auth, household mapping and persistence in an isolated test household |
 | 6 | Memory writes require current consent; revocation deletes memory | SCHEMA + API FOUNDATION | Automatic conversation-memory writes are not connected; test repository/trigger path and concurrent revoke/write behavior |
 | 7 | Two households cannot read/update each other's tasks, memory or cases | NOT COMPLETE | Two-identity integration tests against a non-production database |
 | 8 | Live weather and mandi results have correct source and observation/retrieval timestamps | NOT VERIFIED | Authorized provider tests; validate units, location matching, freshness and failure cases |
