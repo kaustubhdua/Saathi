@@ -1,4 +1,5 @@
 import { Buffer } from "node:buffer";
+import { isIP } from "node:net";
 
 const POLICIES = {
   "api/v1/agent": { method: "POST", kind: "json", maxBytes: 64 * 1024, timeoutMs: 12_000 },
@@ -16,7 +17,7 @@ function errorResponse(status, detail) {
 function isRateLimited(request) {
   // Host must overwrite X-Real-IP. This is a per-instance safety net, not a shared limiter.
   const suppliedIp = request.headers.get("x-real-ip")?.trim();
-  const ip = suppliedIp && /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/.test(suppliedIp) ? suppliedIp : "unknown";
+  const ip = suppliedIp && isIP(suppliedIp) ? suppliedIp : "unknown";
   const now = Date.now();
   let bucket = buckets.get(ip);
   if (!bucket || now - bucket.startedAt >= WINDOW_MS) {
