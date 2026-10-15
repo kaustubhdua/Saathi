@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime, timezone
 
 import pytest
@@ -9,8 +10,7 @@ HOUSEHOLD_ID = "22222222-2222-4222-8222-222222222222"
 MEMORY_ID = "33333333-3333-4333-8333-333333333333"
 
 
-@pytest.mark.asyncio
-async def test_save_marks_memory_user_confirmed_and_returns_only_public_fields(monkeypatch):
+def test_save_marks_memory_user_confirmed_and_returns_only_public_fields(monkeypatch):
     repository = SupabaseMemoryRepository()
     captured = {}
 
@@ -28,12 +28,12 @@ async def test_save_marks_memory_user_confirmed_and_returns_only_public_fields(m
         }]
 
     monkeypatch.setattr(repository, "_request", request)
-    result = await repository.save(
+    result = asyncio.run(repository.save(
         household_id=HOUSEHOLD_ID,
         memory_type="preference",
         key_name="crop",
         value_text="wheat",
-    )
+    ))
     assert captured["method"] == "POST"
     assert captured["payload"]["source"] == "user_confirmed"
     assert captured["payload"]["household_id"] == HOUSEHOLD_ID
@@ -41,8 +41,7 @@ async def test_save_marks_memory_user_confirmed_and_returns_only_public_fields(m
     assert result["memory_id"] == MEMORY_ID
 
 
-@pytest.mark.asyncio
-async def test_duplicate_memory_update_is_scoped_to_household_and_key(monkeypatch):
+def test_duplicate_memory_update_is_scoped_to_household_and_key(monkeypatch):
     repository = SupabaseMemoryRepository()
     calls = []
 
@@ -61,12 +60,12 @@ async def test_duplicate_memory_update_is_scoped_to_household_and_key(monkeypatc
         }]
 
     monkeypatch.setattr(repository, "_request", request)
-    result = await repository.save(
+    result = asyncio.run(repository.save(
         household_id=HOUSEHOLD_ID,
         memory_type="preference",
         key_name="crop type",
         value_text="wheat",
-    )
+    ))
     assert calls[1][0] == "PATCH"
     assert f"household_id=eq.{HOUSEHOLD_ID}" in calls[1][1]
     assert "memory_type=eq.preference" in calls[1][1]
@@ -74,8 +73,7 @@ async def test_duplicate_memory_update_is_scoped_to_household_and_key(monkeypatc
     assert result["key_name"] == "crop type"
 
 
-@pytest.mark.asyncio
-async def test_database_consent_guard_failure_is_not_retried(monkeypatch):
+def test_database_consent_guard_failure_is_not_retried(monkeypatch):
     repository = SupabaseMemoryRepository()
 
     async def request(method, path, payload=None):
@@ -83,16 +81,15 @@ async def test_database_consent_guard_failure_is_not_retried(monkeypatch):
 
     monkeypatch.setattr(repository, "_request", request)
     with pytest.raises(SupabaseRepositoryError, match="household_memory_consent_required"):
-        await repository.save(
+        asyncio.run(repository.save(
             household_id=HOUSEHOLD_ID,
             memory_type="preference",
             key_name="crop",
             value_text="wheat",
-        )
+        ))
 
 
-@pytest.mark.asyncio
-async def test_delete_filters_by_both_memory_and_household(monkeypatch):
+def test_delete_filters_by_both_memory_and_household(monkeypatch):
     repository = SupabaseMemoryRepository()
     captured = {}
 
@@ -101,14 +98,13 @@ async def test_delete_filters_by_both_memory_and_household(monkeypatch):
         return [{"id": MEMORY_ID}]
 
     monkeypatch.setattr(repository, "_request", request)
-    assert await repository.delete(household_id=HOUSEHOLD_ID, memory_id=MEMORY_ID) is True
+    assert asyncio.run(repository.delete(household_id=HOUSEHOLD_ID, memory_id=MEMORY_ID)) is True
     assert captured["method"] == "DELETE"
     assert f"id=eq.{MEMORY_ID}" in captured["path"]
     assert f"household_id=eq.{HOUSEHOLD_ID}" in captured["path"]
 
 
-@pytest.mark.asyncio
-async def test_list_hides_expired_memory(monkeypatch):
+def test_list_hides_expired_memory(monkeypatch):
     repository = SupabaseMemoryRepository()
 
     async def request(method, path, payload=None):
@@ -118,5 +114,5 @@ async def test_list_hides_expired_memory(monkeypatch):
         ]
 
     monkeypatch.setattr(repository, "_request", request)
-    memories = await repository.list_for_household(household_id=HOUSEHOLD_ID)
+    memories = asyncio.run(repository.list_for_household(household_id=HOUSEHOLD_ID))
     assert [memory["key_name"] for memory in memories] == ["current"]
