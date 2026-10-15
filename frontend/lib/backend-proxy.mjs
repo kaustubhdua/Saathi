@@ -15,12 +15,25 @@ function errorResponse(status, detail) {
 
 function isRateLimited(request) {
   // Host must overwrite X-Real-IP. This is a per-instance safety net, not a shared limiter.
-  const ip = request.headers.get("x-real-ip") || "unknown";
+  const suppliedIp = request.headers.get("x-real-ip")?.trim();
+  const ip = suppliedIp && /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/.test(suppliedIp) ? suppliedIp : "unknown";
   const now = Date.now();
   let bucket = buckets.get(ip);
-  if (!bucket || now - bucket.startedAt >= WINDOW_MS) { bucket = { startedAt: now, count: 0 }; buckets.set(ip, bucket); }
+  if (!bucket || now - bucket.startedAt >= WINDOW_MS) {
+    bucket = { startedAt: now, count: 0 };
+    buckets.delete(ip);
+    buckets.set(ip, bucket);
+  }
   bucket.count += 1;
-  if (buckets.size > 2000) for (const [key, value] of buckets) if (now - value.startedAt >= WINDOW_MS) buckets.delete(key);
+  // Expire old buckets opportunistically, then evict the oldest bucket if a
+  // high-cardinality request stream still exceeds the hard memory ceiling.
+  if (buckets.size > 2000) {
+    for (const [key, value] of buckets) {
+      if (now - value.startedAt >= WINDOW_MS) buckets.delete(key);
+      if (buckets.size <= 2000) break;
+    }
+  }
+  if (buckets.size > 2000) buckets.delete(buckets.keys().next().value);
   return bucket.count > REQUEST_LIMIT;
 }
 
@@ -116,3 +129,4 @@ export async function proxyRequest(request, segments = []) {
 }
 
 export function _resetRateLimitForTests() { buckets.clear(); }
+export function _rateLimitBucketCountForTests() { return buckets.size; }
