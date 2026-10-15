@@ -1,4 +1,5 @@
 import { isAuthRateLimited } from "../../../../lib/auth-rate-limit.mjs";
+import { readBoundedJson } from "../../../../lib/auth-request";
 import {
   createHouseholdMembership,
   findHouseholdMembership,
@@ -28,16 +29,9 @@ export async function GET() {
 
 export async function POST(request: Request) {
   if (!validOrigin(request)) return Response.json({ detail: "origin_not_allowed" }, { status: 403 });
-  const length = Number(request.headers.get("content-length") || 0);
-  if (length > 4096) return Response.json({ detail: "request_body_too_large" }, { status: 413 });
-  let body: { mode?: unknown; pin?: unknown };
-  try {
-    const raw = await request.text();
-    if (raw.length > 4096) return Response.json({ detail: "request_body_too_large" }, { status: 413 });
-    body = JSON.parse(raw);
-  } catch {
-    return Response.json({ detail: "invalid_json" }, { status: 400 });
-  }
+  const parsed = await readBoundedJson(request);
+  if (!parsed.ok) return Response.json({ detail: parsed.detail }, { status: parsed.status, headers: { "Cache-Control": "no-store" } });
+  const body = parsed.value;
   if (!["setup", "verify"].includes(String(body.mode)) || typeof body.pin !== "string" || !isStrongHouseholdPin(body.pin)) {
     return Response.json({ detail: "strong_eight_digit_household_pin_required" }, { status: 422 });
   }
