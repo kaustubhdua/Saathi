@@ -345,7 +345,7 @@ class Orchestrator:
                 return self._outcome(
                     intent=intent,
                     reply=" ".join(parts),
-                    result=mandi_result if mandi_result.ok else weather_result,
+                    result=mandi_result if mandi_result.ok and weather_result.ok else (mandi_result if not mandi_result.ok else weather_result),
                     results=(mandi_result, weather_result),
                     confidence=0.9 if mandi_result.ok and weather_result.ok else 0.6,
                     tool_name="get_mandi_price+get_weather",

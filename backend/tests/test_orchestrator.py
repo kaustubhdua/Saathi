@@ -129,6 +129,7 @@ def test_combined_provider_failure_does_not_invent_missing_value(monkeypatch):
     ))
     assert "मौसम की जानकारी अभी उपलब्ध नहीं है" in outcome.reply
     assert outcome.escalated is True
+    assert outcome.result is not None and not outcome.result.ok
 
 def test_weather_phrase_with_sambhavana_does_not_trigger_mandi():
     outcome = asyncio.run(Orchestrator().handle(
