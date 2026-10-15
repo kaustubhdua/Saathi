@@ -10,6 +10,7 @@ function validOrigin(request: Request) {
 
 export async function POST(request: Request) {
   if (!validOrigin(request)) return Response.json({ detail: "origin_not_allowed" }, { status: 403 });
+  if (!(request.headers.get("content-type") || "").toLowerCase().startsWith("application/json")) return Response.json({ detail: "application_json_required" }, { status: 415, headers: { "Cache-Control": "no-store" } });
   const parsed = await readBoundedJson(request);
   if (!parsed.ok) return Response.json({ detail: parsed.detail }, { status: parsed.status, headers: { "Cache-Control": "no-store" } });
   const body = parsed.value;
