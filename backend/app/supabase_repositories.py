@@ -155,6 +155,89 @@ class SupabaseConsentRepository(_SupabaseRepository):
         return consent
 
 
+class SupabaseMemoryRepository(_SupabaseRepository):
+    """Explicit, user-confirmed household memories. Database trigger enforces consent on writes."""
+
+    @staticmethod
+    def _public_memory(row: dict) -> dict[str, object]:
+        return {
+            "memory_id": str(row["id"]),
+            "memory_type": str(row["memory_type"]),
+            "key_name": str(row["key_name"]),
+            "value_text": str(row["value_text"]),
+            "source": str(row.get("source") or "user_confirmed"),
+            "updated_at": row.get("updated_at"),
+            "expires_at": row.get("expires_at"),
+        }
+
+    async def list_for_household(self, *, household_id: str) -> list[dict[str, object]]:
+        household_uuid = self._uuid(household_id)
+        rows = await self._request(
+            "GET",
+            f"saathi_household_memories?household_id=eq.{household_uuid}&select=id,memory_type,key_name,value_text,source,updated_at,expires_at&order=updated_at.desc",
+        )
+        now = datetime.now(timezone.utc)
+        memories = []
+        for row in rows:
+            expires = row.get("expires_at")
+            if expires:
+                try:
+                    if datetime.fromisoformat(str(expires).replace("Z", "+00:00")) <= now:
+                        continue
+                except ValueError as exc:
+                    raise SupabaseRepositoryError("memory_expiry_invalid") from exc
+            memories.append(self._public_memory(row))
+        return memories
+
+    async def save(
+        self,
+        *,
+        household_id: str,
+        memory_type: str,
+        key_name: str,
+        value_text: str,
+    ) -> dict[str, object]:
+        from urllib.parse import quote
+
+        household_uuid = self._uuid(household_id)
+        now = datetime.now(timezone.utc).isoformat()
+        payload = {
+            "household_id": household_uuid,
+            "memory_type": memory_type,
+            "key_name": key_name,
+            "value_text": value_text,
+            "source": "user_confirmed",
+            "updated_at": now,
+            "expires_at": None,
+        }
+        try:
+            rows = await self._request("POST", "saathi_household_memories", payload)
+        except SupabaseRepositoryError as exc:
+            if "http_409" not in str(exc):
+                raise
+            rows = await self._request(
+                "PATCH",
+                "saathi_household_memories"
+                f"?household_id=eq.{household_uuid}"
+                f"&memory_type=eq.{quote(memory_type, safe='')}"
+                f"&key_name=eq.{quote(key_name, safe='')}"
+                "&select=id,memory_type,key_name,value_text,source,updated_at,expires_at",
+                payload,
+            )
+        if not rows:
+            raise SupabaseRepositoryError("household_memory_save_failed")
+        return self._public_memory(rows[0])
+
+    async def delete(self, *, household_id: str, memory_id: str) -> bool:
+        household_uuid = self._uuid(household_id)
+        memory_uuid = self._uuid(memory_id)
+        rows = await self._request(
+            "DELETE",
+            f"saathi_household_memories?id=eq.{memory_uuid}&household_id=eq.{household_uuid}&select=id",
+        )
+        return bool(rows)
+
+
 class SupabaseTaskRepository(_SupabaseRepository):
     """Persistent task adapter with household-scoped reads and updates."""
 
