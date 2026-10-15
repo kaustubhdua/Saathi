@@ -230,7 +230,7 @@ class DataGovMandiTool:
                     error_code=error_code,
                     retryable=False,
                     data={"commodity": commodity, "state": state, "district": district, "market": market,
-                          "arrival_date": field_value(record, "arrival_date", "Arrival_Date", "arrival date") if False else None},
+                          "arrival_date": record.get("arrival_date") or record.get("Arrival_Date") or record.get("arrival date")},
                     source=SourceRecord(
                         name="Government OGD / AGMARKNET",
                         url=url,
