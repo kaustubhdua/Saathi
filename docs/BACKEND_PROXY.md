@@ -14,7 +14,7 @@ The dashboard uses same-origin `/backend/*` routes. The Next.js Node route forwa
 - Only `GET /health/ready`, `GET /health/live`, `POST /api/v1/agent` and `POST /api/v1/voice/turn` are exposed.
 - The proxy rejects browser-supplied household identifiers, checks mutation origins when present, bounds request-body size and read time, rejects redirects, uses no-store responses, and includes a best-effort per-process rate limit.
 - Text requests are limited to 64 KiB; voice uploads are limited to 10 MiB. Upstream calls have bounded timeouts.
-- The host must overwrite `X-Real-IP`. The local limiter is not shared across instances and must be supplemented by an edge/shared limiter in production.
+- The host must overwrite `X-Real-IP`. The process-local limiter validates IP literals, caps bucket storage at 2,000 entries, and evicts stale/oldest entries under high-cardinality traffic. It remains a best-effort per-instance safeguard, not a distributed abuse boundary; production still requires a verified edge/shared limiter.
 - This proxy does not implement login, verified household identity, consent, persistent memory, task APIs or outbound calls. Those routes remain unavailable until end-to-end authorization is implemented.
 - Production readiness reports `not_ready` when required API operator authentication is missing.
 
