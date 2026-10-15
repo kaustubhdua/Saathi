@@ -34,6 +34,10 @@ Active shared project: `igqgtlmnwssjaoxkkzbm` (Nihdhoom, `ap-south-1`).
 - The separate Supabase project named `Saathi` (`ibvgxgvcqcfnoyrlwywa`, `ap-northeast-2`) remains inactive. Its migration-history query previously timed out. It was not restored. Do not restore it without explicit operator approval.
 - The active project is shared with Nihdhoom and other namespaced components. Its broad advisor report includes findings on unrelated functions/tables. Do not apply broad fixes to unrelated applications as part of Saathi without a scoped review.
 
+## Hosting discovery
+
+Read-only Vercel discovery found no Vercel project linked to `kaustubhdua/Saathi`; the connected team currently lists JYC Website, SATARK, and Nihdhoom projects. No Saathi deployment was created or changed. The documented freeze against Vercel configuration/deployment remains in force until 2026-10-24, and the post-freeze setup must select the intended Supabase target and satisfy the release gates first.
+
 ## CI and quality gates
 
 The workflow includes frontend lint, Node contract tests, TypeScript, production build and dashboard smoke; backend tests and API smoke; dependency audit; Docker build; and Streamlit smoke. The exact current-head result is available on [PR #68](https://github.com/kaustubhdua/Saathi/pull/68).
