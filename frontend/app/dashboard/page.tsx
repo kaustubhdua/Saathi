@@ -643,6 +643,42 @@ export default function Dashboard() {
           {consentError && <p className="voice-error" role="alert" aria-live="assertive">{consentError}</p>}
         </section>
 
+        <section className="consent-card" aria-labelledby="memories-title">
+          <div className="context-title"><div><span className="panel-kicker">USER-CONTROLLED MEMORY</span><h3 id="memories-title">Choose what Saathi remembers.</h3></div><ShieldCheck size={18} /></div>
+          <p className="consent-intro">Nothing is extracted from conversations automatically. Add only information you explicitly choose to save. The database also checks current memory consent when writing and purges saved memory when consent is revoked.</p>
+          {!authStatus.phoneSuffix ? (
+            <div className="consent-note"><ShieldCheck size={14} /> Sign in with a verified phone and household PIN to manage saved memory. <Link href="/login">Sign in</Link></div>
+          ) : !authStatus.householdReady ? (
+            <div className="consent-note"><ShieldCheck size={14} /> Verify your household PIN before viewing saved memory. <Link href="/login">Verify household PIN</Link></div>
+          ) : consentStatus?.memory.granted !== true ? (
+            <div className="consent-note"><ShieldCheck size={14} /> Memory consent is off. Enable it in the Household Consent section above before saving anything.</div>
+          ) : (
+            <>
+              <form className="memory-form" onSubmit={saveHouseholdMemory}>
+                <div className="memory-form-grid">
+                  <div><label htmlFor="memory-type">Category</label><input id="memory-type" value={memoryType} onChange={(event) => setMemoryType(event.target.value)} maxLength={80} required /></div>
+                  <div><label htmlFor="memory-key">What should be remembered?</label><input id="memory-key" value={memoryKey} onChange={(event) => setMemoryKey(event.target.value)} maxLength={120} placeholder="e.g. preferred crop" required /></div>
+                </div>
+                <label htmlFor="memory-value">Value</label>
+                <textarea id="memory-value" value={memoryValue} onChange={(event) => setMemoryValue(event.target.value)} maxLength={2000} rows={3} placeholder="Write the exact information you want to save" required />
+                <button type="submit" className="run-button" disabled={memoryBusy || !memoryType.trim() || !memoryKey.trim() || !memoryValue.trim()}>{memoryBusy ? "Saving…" : "Save selected memory"}</button>
+              </form>
+              {householdMemories === null ? <p className="consent-intro">Loading saved memory…</p> : householdMemories.length === 0 ? <div className="consent-note">No saved memories yet. Only items you add here are stored.</div> : (
+                <ul className="memory-list">
+                  {householdMemories.map((memory) => (
+                    <li className="memory-row" key={memory.memory_id}>
+                      <div><span className="consent-state">{memory.memory_type}</span><strong>{memory.key_name}</strong><p>{memory.value_text}</p><small>Explicitly saved · {memory.updated_at ? new Date(memory.updated_at).toLocaleString() : "time unavailable"}</small></div>
+                      <button type="button" className="voice-button" disabled={memoryBusy} aria-label={`Delete saved memory ${memory.key_name}`} onClick={() => void deleteHouseholdMemory(memory.memory_id)}>Delete</button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </>
+          )}
+          {memoryMessage && <p role="status" aria-live="polite">{memoryMessage}</p>}
+          {memoryError && <p className="voice-error" role="alert" aria-live="assertive">{memoryError}</p>}
+        </section>
+
         <section className="consent-card" aria-labelledby="tasks-title">
           <div className="context-title"><div><span className="panel-kicker">HOUSEHOLD TASKS</span><h3 id="tasks-title">Keep track of the next step.</h3></div><CheckCircle2 size={18} /></div>
           <p className="consent-intro">Tasks are saved to your verified household and can be marked complete or cancelled. Scheduled reminders and automatic follow-up delivery are not enabled yet.</p>
