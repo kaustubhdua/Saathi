@@ -1,5 +1,7 @@
 from base64 import b64encode
 from hmac import compare_digest
+from ipaddress import ip_address
+from urllib.parse import urlsplit
 from time import perf_counter
 
 from fastapi import FastAPI, File, Form, Header, HTTPException, Request, UploadFile, WebSocket, WebSocketDisconnect
@@ -130,6 +132,24 @@ def _authorize_api_request(supplied_key: str | None) -> None:
         raise HTTPException(status_code=503, detail="api_authentication_not_configured")
     if not supplied_key or not compare_digest(supplied_key, settings.api_auth_token):
         raise HTTPException(status_code=401, detail="api_authentication_required")
+
+
+def _configured_telephony_callback_url() -> str:
+    """Return a trusted public HTTPS callback URL from server configuration only."""
+    raw = (settings.telephony_callback_url or "").strip()
+    parsed = urlsplit(raw)
+    host = (parsed.hostname or "").lower()
+    invalid = parsed.scheme != "https" or not host or parsed.username is not None or parsed.password is not None or bool(parsed.fragment)
+    if host in {"localhost", "localhost.localdomain"} or host.endswith((".localhost", ".local")):
+        invalid = True
+    try:
+        if host and not ip_address(host).is_global:
+            invalid = True
+    except ValueError:
+        pass
+    if invalid:
+        raise HTTPException(status_code=503, detail="public_telephony_callback_url_not_configured")
+    return raw
 
 
 def _authorize_telephony_stream(supplied_token: str | None) -> None:
@@ -359,6 +379,7 @@ async def place_outbound_call(
         raise HTTPException(status_code=503, detail="telephony_provider_not_configured")
     if payload.realtime_voice_ai and not settings.exotel_stream_url:
         raise HTTPException(status_code=503, detail="realtime_stream_not_configured")
+    callback_url = _configured_telephony_callback_url()
     if not payload.household_id:
         raise HTTPException(status_code=400, detail="household_id_required_for_live_call")
 
@@ -397,10 +418,10 @@ async def place_outbound_call(
             provider_call_id = await provider.place_voice_ai_call(
                 to=payload.to,
                 stream_url=settings.exotel_stream_url,
-                callback_url=payload.callback_url,
+                callback_url=callback_url,
             )
         else:
-            provider_call_id = await provider.place_call(to=payload.to, callback_url=payload.callback_url)
+            provider_call_id = await provider.place_call(to=payload.to, callback_url=callback_url)
         if not provider_call_id:
             raise RuntimeError("telephony_provider_missing_call_id")
     except Exception:
