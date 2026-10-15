@@ -1,5 +1,5 @@
 from typing import Literal
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 Intent = Literal["scheme", "farming", "document", "task", "general", "human"]
 EscalationReason = Literal["low_confidence", "explicit_human_request", "provider_failure", "safety_boundary"]
@@ -43,6 +43,8 @@ class ConversationResponse(BaseModel):
 
 
 class ConsentUpdateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     purpose: Literal["memory", "outbound_calls"]
     granted: bool
 
