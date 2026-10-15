@@ -40,9 +40,9 @@ The browser does not need a direct API URL; requests go through the same-origin 
 ## 3. Configure verified phone identity and household consent
 
 - Set `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` on Vercel.
-- Set `SUPABASE_URL` and `SUPABASE_SECRET_KEY` as **server-only** Vercel environment variables. The secret key is used only by the Next.js server to find/create the household associated with a verified phone; never use a `NEXT_PUBLIC_*` name for it.
+- Set `SUPABASE_URL`, `SUPABASE_SECRET_KEY`, `HOUSEHOLD_PIN_PEPPER` and `HOUSEHOLD_CONTEXT_SIGNING_SECRET` as **server-only** Vercel environment variables. Use random values of at least 32 characters for the pepper and signing secret. Never use a `NEXT_PUBLIC_*` name for any of these values.
 - Enable Phone authentication in Supabase Auth and configure an SMS provider in the Supabase dashboard. This repository cannot configure the SMS provider or verify delivery without administrator access and provider credentials.
-- Test request OTP, verify OTP, session refresh, sign-out, duplicate first-login household creation, and an invalid/unverified session.
+- Test request OTP, verify OTP, PIN setup and verification, session refresh, sign-out, concurrent first-login household creation, phone-number recycling isolation, and an invalid/unverified session.
 - Phone OTP is followed by a separate eight-digit household PIN. The PIN is stored as a server-keyed HMAC hash, and a signed HttpOnly household-context cookie expires after one hour. A phone number alone never grants access, protecting against number recycling.
 - The application maps a confirmed Supabase Auth user ID to a Saathi household through `saathi_household_memberships`. The membership table is currently a proposed migration outside active discovery and must not be applied until migration-history reconciliation is approved. New households start with memory and outbound-call consent disabled.
 - The consent panel reads and writes purpose-specific consent through the authenticated same-origin proxy. Memory revocation relies on the existing database trigger to purge stored memories.
