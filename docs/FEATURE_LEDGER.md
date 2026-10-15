@@ -30,9 +30,9 @@ Last verified: 2026-10-15 UTC
 - New household rows start with memory and outbound-call consent disabled. Purpose-specific consent status/update endpoints and UI controls are added.
 - The proxy injects verified identity/household headers only from the server-side session resolver; the backend validates both UUIDs and rejects client-supplied household IDs.
 - Memory consent is explicitly described as permission for future storage because automatic conversation-memory writes are not yet connected.
-- The membership migration remains proposed outside active discovery until PR #58's migration-history reconciliation is approved. Until that table exists, household-specific requests fail closed.
+- The membership migration remains proposed outside active discovery until PR #58's migration-history reconciliation is approved. Until that table exists, household-specific requests fail closed. Enrollment now creates a separate phone-unlinked household if a concurrent unique-phone insert conflicts; it never adopts a household by looking up the conflicting phone number.
 - The feature requires public `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (or the existing public anon key), plus server-only `SUPABASE_URL` and `SUPABASE_SECRET_KEY`. Never expose the secret key through `NEXT_PUBLIC_*`.
-- The authentication rate limiter now rejects missing, malformed or comma-separated trusted client IP values in production before any Upstash request; development retains a local fallback. Development bucket storage is capped at 5,000 entries. These changes are in a follow-up PR stacked on the auth candidate and are not yet merged.
+- The authentication rate limiter rejects missing, malformed or comma-separated trusted client IP values in production before any Upstash request; development retains a local fallback and caps bucket storage at 5,000 entries. The household enrollment flow also isolates concurrent phone-number uniqueness conflicts rather than adopting an existing household. Both fixes and regression tests are now committed to this auth branch; exact-head CI is required before the candidate is considered review-ready.
 
 ## Other partial implementation
 
