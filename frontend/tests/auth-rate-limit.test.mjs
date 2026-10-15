@@ -10,7 +10,7 @@ test.beforeEach(() => {
   _resetAuthRateLimitForTests();
 });
 test.afterEach(() => {
-  for (const key of ["NODE_ENV", "SAATHI_TRUSTED_CLIENT_IP_HEADER"]) {
+  for (const key of ["NODE_ENV", "SAATHI_TRUSTED_CLIENT_IP_HEADER", "UPSTASH_REDIS_REST_URL", "UPSTASH_REDIS_REST_TOKEN"]) {
     if (originalEnv[key] === undefined) delete process.env[key];
     else process.env[key] = originalEnv[key];
   }
