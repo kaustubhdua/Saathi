@@ -8,7 +8,7 @@ Last verified: 2026-10-15 UTC
 - Telephony callback lifecycle and live-call safety gate: [PR #61](https://github.com/kaustubhdua/Saathi/pull/61), merged.
 - Dashboard keyboard accessibility and truthful status labels: [PR #63](https://github.com/kaustubhdua/Saathi/pull/63), merged.
 - Shared production rate limiting: [PR #64](https://github.com/kaustubhdua/Saathi/pull/64), merged; production requires configured Upstash Redis and a trusted single-IP header.
-- Phone OTP, household PIN and purpose-specific consent: [PR #68](https://github.com/kaustubhdua/Saathi/pull/68), draft pending CI, lockfile regeneration and migration dependency.
+- Phone OTP, household PIN and purpose-specific consent: [PR #68](https://github.com/kaustubhdua/Saathi/pull/68), draft; exact-head CI run #828 passed all five jobs on `a7b187091ecdc87283077addd9ad93ced62eade5`. Migration and live provider gates remain.
 - Migration quarantine/index proposal: [PR #58](https://github.com/kaustubhdua/Saathi/pull/58), draft; do not merge until all environments' migration histories are reconciled.
 - [Release acceptance matrix](RELEASE_ACCEPTANCE_MATRIX.md)
 - [Provider verification plan](PROVIDER_VERIFICATION.md)
@@ -23,7 +23,7 @@ Last verified: 2026-10-15 UTC
 - PR #63 merged after frontend accessibility contract tests and full CI passed.
 - PR #64 merged after CI run #796 passed. Production API requests now fail closed unless shared Upstash rate limiting and a trusted single-IP header are configured. The Upstash credentials and hosting-header behavior have not been verified in a live deployment.
 
-## Partial — PR #68 pending CI, lockfile, migration and provider configuration
+## Partial — PR #68 CI green; migration and provider configuration pending
 
 - Supabase SSR phone OTP login routes and an accessible login page are added. SMS delivery requires enabling Supabase Phone Auth and configuring the SMS provider in the project dashboard.
 - The server verifies the Supabase user and confirmed E.164 phone, then maps the immutable Supabase Auth user ID through the proposed `saathi_household_memberships` table. A phone number alone never grants access, avoiding recycled-number takeover.
@@ -45,12 +45,12 @@ Last verified: 2026-10-15 UTC
 - No real Open-Meteo, OGD/AGMARKNET, Sarvam STT/TTS, document AI or Exotel round-trip test is claimed.
 - Exotel callback authentication remains unverified: the current webhook requires an HMAC over the raw body, and official callback docs do not establish that Exotel supplies the custom HMAC header. Keep `TELEPHONY_CALLBACK_SIGNATURE_VERIFIED=false` until verified with the actual provider or trusted signer.
 - Upstash shared rate limiting and the hosting platform's trusted-IP header must be configured/tested before production traffic; code intentionally fails closed otherwise.
-- PR #66 added the frontend lockfile and switched CI to `npm ci`; PR #68 adds two Supabase dependencies and a temporary lockfile bootstrap workflow. After it regenerates the lockfile, remove the temporary workflow and rerun full CI. Mobile/browser screen-reader tests, full WCAG 2.2 AA audit, reduced-motion/contrast checks, Lighthouse/Core Web Vitals, SEO, monitoring, rollback evidence and deployed SHA remain outstanding.
+- PR #66 added the frontend lockfile and switched CI to `npm ci`; PR #68 regenerated the lockfile for the Supabase dependencies. Exact-head CI run #828 passed all five jobs, including `npm ci`, lint, Node tests, TypeScript, build, backend pytest/API smoke, dependency audit, Docker build and Streamlit smoke. Mobile/browser screen-reader tests, full WCAG 2.2 AA audit, reduced-motion/contrast checks, Lighthouse/Core Web Vitals, SEO, monitoring, rollback evidence and deployed SHA remain outstanding.
 - Vercel deployment/configuration remains deferred until 2026-10-24.
 
 ## Next actions
 
-1. Finish CI on PR #68 after lockfile regeneration and fix all failures. Keep it draft until the membership migration can be safely activated after PR #58 is reconciled.
+1. Keep PR #68 draft until the membership migration can be safely activated after PR #58 is reconciled. Configure Supabase Phone Auth/SMS and server-only secrets, then test the full identity/consent flow in an isolated environment.
 2. Configure Supabase Phone Auth and SMS delivery, then verify OTP, session refresh, sign-out, first-household creation, phone-number recycling isolation and consent behavior against an isolated test household.
 3. Prove memory consent/revocation through the actual repository and database trigger; connect memory writes only after identity and consent tests pass.
 4. Keep PR #58 draft until migration history is reconciled across environments; do not apply live DDL before approval.
