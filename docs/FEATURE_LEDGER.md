@@ -91,5 +91,5 @@ Last verified: 2026-10-15 UTC (2026-10-16 IST)
 - Scheme records now expose `effective_from` separately from `source_checked_on`, plus an explanatory `effective_date_note`; the API serializes these fields through its existing dataclass response.
 - PM-KISAN operational date: `2018-12-01`, as stated on the [official PM-KISAN portal](https://pmkisan.gov.in/).
 - PMFBY inception is represented as `Kharif 2016`, matching the [official PMFBY guidelines](https://pmfby.gov.in/pdf/Revamped%20Operational%20Guidelines_17th%20August%202020.pdf). The record explicitly warns that current state/crop/season notifications may have separate effective dates and deadlines.
-- The catalogue review date is refreshed to `2026-10-16`; this records the review, not a live government data feed. Regression tests assert both effective-date fields and the distinction from current eligibility/season rules.
+- The catalogue review date is `2026-10-15` UTC / `2026-10-16` IST; this records the review, not a live government data feed. Regression tests assert both effective-date fields and the distinction from current eligibility/season rules.
 - Verification: exact-head CI for this addition is pending. No scheme eligibility is inferred from these inception dates, and no application is submitted automatically.
