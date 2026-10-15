@@ -126,7 +126,7 @@ export async function proxyRequest(request, segments = [], options = {}) {
   const readOnly = READ_ROUTES.has(path) && method === "GET";
   const policy = POLICIES[path];
   if (!readOnly && (!policy || policy.method !== method)) return errorResponse(404, "route_not_allowed");
-  if (path === "api/v1/household/consent" && !verifiedContext) return errorResponse(401, "verified_phone_identity_required");
+  if (["api/v1/household/consent", "api/v1/household/tasks", "api/v1/household/tasks/status"].includes(path) && !verifiedContext) return errorResponse(401, "verified_phone_identity_required");
   if (verifiedContext && (!/^[0-9a-f-]{36}$/i.test(verifiedContext.identityId) || !/^[0-9a-f-]{36}$/i.test(verifiedContext.householdId))) return errorResponse(403, "invalid_verified_household_context");
   const env = process.env;
   const rateKey = `${method}:${path}:${clientIp(request, env)}`;
