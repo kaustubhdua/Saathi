@@ -13,10 +13,16 @@ async function handle(request: Request, context: RouteContext) {
   if (identityRoutes.has(routePath)) {
     try {
       verifiedContext = await resolveVerifiedHouseholdContext();
-    } catch {
+    } catch (cause) {
+      const reason = cause instanceof Error ? cause.message : "";
+      const requiresUserAction = [
+        "verified_phone_identity_required",
+        "household_pin_verification_required",
+        "household_context_mismatch",
+      ].includes(reason);
       return Response.json(
-        { detail: "household_identity_unavailable" },
-        { status: 503, headers: { "Cache-Control": "no-store" } },
+        { detail: requiresUserAction ? reason : "household_identity_unavailable" },
+        { status: requiresUserAction ? 401 : 503, headers: { "Cache-Control": "no-store" } },
       );
     }
   }
