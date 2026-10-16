@@ -7,7 +7,7 @@ import json
 import sys
 from pathlib import Path
 
-for candidate in (Path(__file__).resolve().parents[1], Path("/app"), Path(__file__).resolve().parents[2] / "backend"):
+for candidate in (Path("/app"), Path(__file__).resolve().parent.parent, Path(__file__).resolve().parent.parent.parent / "backend"):
     if (candidate / "app" / "local_ocr.py").is_file():
         sys.path.insert(0, str(candidate))
         break
