@@ -5,6 +5,7 @@ from hmac import compare_digest
 from ipaddress import ip_address
 import os
 import shutil
+import subprocess
 
 import httpx
 from urllib.parse import urlsplit
@@ -130,6 +131,27 @@ def metrics() -> dict[str, object]:
     return metrics_snapshot()
 
 
+def _local_ocr_available(binary: str) -> bool:
+    """Report OCR only when Tesseract and both configured language packs are present."""
+    executable = shutil.which(binary)
+    if not executable:
+        return False
+    try:
+        result = subprocess.run(
+            [executable, "--list-langs"],
+            capture_output=True,
+            text=True,
+            timeout=1.5,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+    if result.returncode != 0:
+        return False
+    languages = {line.strip() for line in (result.stdout or "").splitlines()[1:] if line.strip()}
+    return {"hin", "eng"} <= languages
+
+
 def _ollama_model_available(base_url: str, model: str) -> bool:
     """Bounded readiness probe: true only when the configured model is actually pulled."""
     try:
@@ -224,7 +246,7 @@ def readiness() -> dict[str, object]:
             "offline_tts": offline_tts,
             "weather": True,
             "documents": bool(settings.sarvam_api_key),
-            "local_ocr": bool(settings.local_ocr_enabled and shutil.which(settings.local_ocr_binary)),
+            "local_ocr": bool(settings.local_ocr_enabled and _local_ocr_available(settings.local_ocr_binary)),
             "api_operator_auth": api_auth_configured,
             "telephony_stream_auth": bool(settings.telephony_stream_token),
         },
