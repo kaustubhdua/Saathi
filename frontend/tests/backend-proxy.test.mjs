@@ -317,3 +317,32 @@ test("rejects oversized local OCR bodies before contacting backend", async () =>
   assert.equal(response.status, 413);
   assert.equal(called, false);
 });
+
+test("forwards validated scheduled task fields through the household proxy", async () => {
+  setup();
+  const context = { identityId: "11111111-1111-4111-8111-111111111111", householdId: "22222222-2222-4222-8222-222222222222" };
+  let init;
+  globalThis.fetch = async (_url, options) => { init = options; return Response.json({ task_id: "33333333-3333-4333-8333-333333333333" }); };
+  const schedule = "2026-10-18T09:00:00.000Z";
+  const response = await proxyRequest(req("api/v1/household/tasks", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ title: "Submit form", scheduled_callback: schedule, timezone_name: "Asia/Kolkata", idempotency_key: "reminder-1" }) }), ["api", "v1", "household", "tasks"], { verifiedContext: context });
+  assert.equal(response.status, 200);
+  const body = JSON.parse(init.body.toString("utf8"));
+  assert.equal(body.scheduled_callback, schedule);
+  assert.equal(body.timezone_name, "Asia/Kolkata");
+  assert.equal(body.household_id, undefined);
+  assert.equal(new Headers(init.headers).get("X-Saathi-Verified-Household"), context.householdId);
+});
+
+test("notification routes require and inject verified household context", async () => {
+  setup();
+  const context = { identityId: "11111111-1111-4111-8111-111111111111", householdId: "22222222-2222-4222-8222-222222222222" };
+  let init;
+  globalThis.fetch = async (_url, options) => { init = options; return Response.json({ notifications: [] }); };
+  const list = await proxyRequest(req("api/v1/household/notifications"), ["api", "v1", "household", "notifications"], { verifiedContext: context });
+  assert.equal(list.status, 200);
+  assert.equal(new Headers(init.headers).get("X-Saathi-Verified-Household"), context.householdId);
+  globalThis.fetch = async (_url, options) => { init = options; return Response.json({ read: true }); };
+  const read = await proxyRequest(req("api/v1/household/notifications/read", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ notification_id: "33333333-3333-4333-8333-333333333333" }) }), ["api", "v1", "household", "notifications", "read"], { verifiedContext: context });
+  assert.equal(read.status, 200);
+  assert.equal(JSON.parse(init.body.toString("utf8")).notification_id, "33333333-3333-4333-8333-333333333333");
+});
