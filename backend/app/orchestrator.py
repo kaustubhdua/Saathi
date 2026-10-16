@@ -5,6 +5,8 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
+import httpx
+
 from .config import get_settings
 from .escalation import EscalationPolicy, EscalationReason
 from .http_tools import DataGovMandiTool, OpenMeteoWeatherTool
@@ -223,7 +225,7 @@ class Orchestrator:
                                 confidence=0.9,
                                 tool_name="get_mandi_price",
                             )
-            except (ValueError, TypeError, RuntimeError):
+            except (ValueError, TypeError, RuntimeError, httpx.HTTPError):
                 pass
 
         if intent == "human":
