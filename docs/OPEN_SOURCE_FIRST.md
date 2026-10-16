@@ -18,7 +18,7 @@ Saathi's core must run without paid hosted AI credentials. This policy applies t
 
 1. Install Ollama from its official distribution for your OS.
 2. Pull a model locally, for example `ollama pull qwen2.5:3b`.
-3. Set `LLM_PROVIDER=ollama`, `LLM_MODEL=qwen2.5:3b`, and `OLLAMA_BASE_URL=http://127.0.0.1:11434`.
+3. Set `LLM_PROVIDER=ollama`, `LLM_MODEL=qwen2.5:3b`, and `OLLAMA_BASE_URL=http://127.0.0.1:11434`. Set `DEMO_MODE=false` to activate the local model. `DEMO_MODE=true` deliberately bypasses model/network calls so the synthetic demo and CI remain deterministic.
 4. Keep `DEMO_MODE=true` for synthetic data and demonstrations. For live public data, explicitly configure live mode and verify each source adapter; do not enable household features merely to make the demo work.
 5. If the local model is unavailable, Saathi must continue using deterministic routing where possible and clearly report optional reasoning unavailable. It must not silently fall back to a hosted model.
 
