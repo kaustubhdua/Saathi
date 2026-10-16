@@ -84,6 +84,7 @@ def health() -> dict[str, str | bool]:
 
 @app.post("/api/v1/documents/ocr")
 async def local_document_ocr(
+    request: Request,
     file: UploadFile = File(...),
     language: str = Form("hin+eng"),
     x_saathi_api_key: str | None = Header(default=None, alias="X-Saathi-API-Key"),
@@ -92,6 +93,9 @@ async def local_document_ocr(
     _authorize_api_request(x_saathi_api_key)
     if not settings.local_ocr_enabled:
         raise HTTPException(status_code=503, detail="local_ocr_disabled")
+    client_key = request.client.host if request.client else "unknown"
+    if not limiter.allow(f"ocr:{client_key}"):
+        raise HTTPException(status_code=429, detail="rate_limited")
     max_bytes = max(1, min(int(settings.local_ocr_max_bytes), 8 * 1024 * 1024))
     content = await file.read(max_bytes + 1)
     await file.close()
