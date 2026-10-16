@@ -152,6 +152,8 @@ def readiness() -> dict[str, object]:
     else:
         reasoning = False
     mandi = bool(settings.mandi_api_key and settings.mandi_resource_id)
+    household_features_enabled = os.getenv("SAATHI_HOUSEHOLD_FEATURES_ENABLED", "false").strip().lower() in {"1", "true", "yes"}
+    reminders_configured = bool(settings.saathi_reminders_enabled and household_features_enabled and settings.supabase_url and settings.supabase_secret_key)
     speech_provider = str(getattr(settings, "speech_provider", "local")).casefold()
     if speech_provider == "local":
         offline_stt = bool(settings.vosk_model_path and os.path.isdir(settings.vosk_model_path) and shutil.which(settings.ffmpeg_binary))
@@ -192,6 +194,7 @@ def readiness() -> dict[str, object]:
             "weather": True,
             "documents": bool(settings.sarvam_api_key),
             "local_ocr": bool(settings.local_ocr_enabled and shutil.which(settings.local_ocr_binary)),
+            "reminders_configured": reminders_configured,
             "api_operator_auth": api_auth_configured,
             "telephony_stream_auth": bool(settings.telephony_stream_token),
         },
