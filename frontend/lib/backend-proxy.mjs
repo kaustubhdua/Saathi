@@ -132,7 +132,7 @@ export async function proxyRequest(request, segments = [], options = {}) {
   const householdRoute = path.startsWith("api/v1/household/");
   if (householdRoute && process.env.SAATHI_HOUSEHOLD_FEATURES_ENABLED !== "true") return errorResponse(503, "household_features_disabled");
   if (!readOnly && (!policy || policy.method !== method)) return errorResponse(404, "route_not_allowed");
-  if (["api/v1/household/consent", "api/v1/household/tasks", "api/v1/household/tasks/status", "api/v1/household/memories", "api/v1/household/memories/delete"].includes(path) && !verifiedContext) return errorResponse(401, "verified_phone_identity_required");
+  if (["api/v1/household/consent", "api/v1/household/tasks", "api/v1/household/tasks/status", "api/v1/household/notifications", "api/v1/household/notifications/read", "api/v1/household/memories", "api/v1/household/memories/delete"].includes(path) && !verifiedContext) return errorResponse(401, "verified_phone_identity_required");
   if (verifiedContext && (!/^[0-9a-f-]{36}$/i.test(verifiedContext.identityId) || !/^[0-9a-f-]{36}$/i.test(verifiedContext.householdId))) return errorResponse(403, "invalid_verified_household_context");
   const env = process.env;
   const rateKey = `${method}:${path}:${clientIp(request, env)}`;
