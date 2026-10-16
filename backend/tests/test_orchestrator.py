@@ -142,3 +142,41 @@ def test_weather_phrase_with_sambhavana_does_not_trigger_mandi():
     assert outcome.result is not None and outcome.result.ok
     assert outcome.result.data["rain_probability_pct"] == 20
 
+
+
+def test_model_weather_arguments_cannot_override_trusted_location_context():
+    from types import SimpleNamespace
+    from app.provenance import SourceRecord, ToolResult
+
+    captured = {}
+
+    class Router:
+        async def choose(self, _message):
+            return SimpleNamespace(
+                name="get_weather",
+                arguments={"latitude": 0.0, "longitude": 0.0},
+                call_id="model-proposal",
+            )
+
+    class Weather:
+        async def forecast(self, *, latitude, longitude):
+            captured["latitude"] = latitude
+            captured["longitude"] = longitude
+            return ToolResult(
+                ok=True,
+                data={"temperature_c": 27, "rain_probability_pct": 15},
+                source=SourceRecord(name="test-weather", url="https://example.com/weather", retrieved_at=None),
+            )
+
+    agent = Orchestrator()
+    agent.reasoning_router = Router()
+    agent.weather = Weather()
+    context = AgentContext(
+        household_id=None,
+        language="en",
+        location=LocationContext(latitude=28.61, longitude=77.21, label="Delhi"),
+    )
+    outcome = asyncio.run(agent.handle("weather forecast please", context))
+
+    assert outcome.tool_name == "get_weather"
+    assert captured == {"latitude": 28.61, "longitude": 77.21}
