@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 
 for candidate in (Path(__file__).resolve().parents[1], Path("/app"), Path(__file__).resolve().parents[2] / "backend"):
-    if (candidate / "app").is_dir():
+    if (candidate / "app" / "local_ocr.py").is_file():
         sys.path.insert(0, str(candidate))
         break
 from app.local_ocr import extract_local_ocr
