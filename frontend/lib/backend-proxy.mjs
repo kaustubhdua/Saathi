@@ -168,7 +168,7 @@ export async function proxyRequest(request, segments = [], options = {}) {
     if (policy.kind === "multipart" && (!contentType.toLowerCase().startsWith("multipart/form-data;") || !contentType.toLowerCase().includes("boundary="))) return errorResponse(415, "multipart_form_data_required");
     try { body = await readBoundedBody(request, policy.maxBytes, policy.timeoutMs); }
     catch (error) { return errorResponse(error?.status || 400, error?.message || "invalid_request_body"); }
-    if (["json", "consent", "task", "task_status", "memory", "memory_delete"].includes(policy.kind)) {
+    if (["json", "consent", "task", "task_status", "notification_read", "memory", "memory_delete"].includes(policy.kind)) {
       let parsed;
       try { parsed = JSON.parse(body.toString("utf8")); } catch { return errorResponse(400, "invalid_json"); }
       if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return errorResponse(400, "json_object_required");
@@ -184,14 +184,20 @@ export async function proxyRequest(request, segments = [], options = {}) {
         if (typeof parsed.title !== "string" || !parsed.title.trim() || parsed.title.trim().length > 300) return errorResponse(422, "valid_task_title_required");
         if (parsed.missing_items !== undefined && (!Array.isArray(parsed.missing_items) || parsed.missing_items.length > 20 || parsed.missing_items.some((item) => typeof item !== "string" || item.trim().length > 200))) return errorResponse(422, "invalid_task_missing_items");
         if (parsed.idempotency_key !== undefined && (typeof parsed.idempotency_key !== "string" || parsed.idempotency_key.length < 1 || parsed.idempotency_key.length > 160)) return errorResponse(422, "invalid_task_idempotency_key");
+        if (parsed.scheduled_callback !== undefined && parsed.scheduled_callback !== null && (typeof parsed.scheduled_callback !== "string" || !Number.isFinite(Date.parse(parsed.scheduled_callback)))) return errorResponse(422, "invalid_task_schedule");
+        if (parsed.timezone_name !== undefined && (typeof parsed.timezone_name !== "string" || !parsed.timezone_name.trim() || parsed.timezone_name.length > 80)) return errorResponse(422, "invalid_task_timezone");
         body = Buffer.from(JSON.stringify({
           title: parsed.title.trim(),
           missing_items: (parsed.missing_items || []).map((item) => item.trim()).filter(Boolean),
           ...(parsed.idempotency_key ? { idempotency_key: parsed.idempotency_key } : {}),
+          ...(parsed.scheduled_callback ? { scheduled_callback: parsed.scheduled_callback, timezone_name: parsed.timezone_name || "Asia/Kolkata" } : {}),
         }));
       } else if (policy.kind === "task_status") {
         if (typeof parsed.task_id !== "string" || !/^[0-9a-f-]{36}$/i.test(parsed.task_id) || !["completed", "cancelled"].includes(parsed.status)) return errorResponse(422, "valid_task_status_update_required");
         body = Buffer.from(JSON.stringify({ task_id: parsed.task_id, status: parsed.status }));
+      } else if (policy.kind === "notification_read") {
+        if (typeof parsed.notification_id !== "string" || !/^[0-9a-f-]{36}$/i.test(parsed.notification_id)) return errorResponse(422, "valid_notification_id_required");
+        body = Buffer.from(JSON.stringify({ notification_id: parsed.notification_id }));
       } else if (policy.kind === "memory") {
         if (typeof parsed.memory_type !== "string" || !parsed.memory_type.trim() || parsed.memory_type.trim().length > 80) return errorResponse(422, "valid_memory_type_required");
         if (typeof parsed.key_name !== "string" || !parsed.key_name.trim() || parsed.key_name.trim().length > 120) return errorResponse(422, "valid_memory_key_required");
