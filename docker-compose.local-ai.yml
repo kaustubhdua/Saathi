@@ -25,6 +25,12 @@ services:
       - ollama-data:/root/.ollama
     restart: "no"
 
+  frontend:
+    environment:
+      APP_ENV: development
+      SAATHI_LOCAL_RATE_LIMITER_ENABLED: "true"
+      SAATHI_API_AUTH_TOKEN: ${SAATHI_API_AUTH_TOKEN:?Set SAATHI_API_AUTH_TOKEN in your local .env file}
+
   backend:
     environment:
       APP_ENV: development
