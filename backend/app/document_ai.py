@@ -89,7 +89,7 @@ class SarvamDocumentAIProvider:
                 headers=self._headers(),
             )
             response.raise_for_status()
-            return response.json()
+            return self._json_object(response)
 
     async def extract(
         self,
