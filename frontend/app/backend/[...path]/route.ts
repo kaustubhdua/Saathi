@@ -8,6 +8,7 @@ type RouteContext = { params: Promise<{ path: string[] }> };
 async function handle(request: Request, context: RouteContext) {
   const { path = [] } = await context.params;
   const routePath = path.join("/");
+  if (routePath.startsWith("api/v1/household/") && process.env.SAATHI_HOUSEHOLD_FEATURES_ENABLED !== "true") return Response.json({ detail: "household_features_disabled" }, { status: 503, headers: { "Cache-Control": "no-store" } });
   const householdRoutes = new Set(["api/v1/household/consent", "api/v1/household/tasks", "api/v1/household/tasks/status", "api/v1/household/memories", "api/v1/household/memories/delete"]);
   let verifiedContext = null;
   if (householdRoutes.has(routePath)) {

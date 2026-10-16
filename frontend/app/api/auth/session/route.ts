@@ -8,7 +8,7 @@ export async function GET() {
   const user = !error ? data.user : null;
   const phone = user?.phone_confirmed_at && user.phone ? user.phone : null;
   let householdContextVerified = false;
-  if (phone) {
+  if (phone && process.env.SAATHI_HOUSEHOLD_FEATURES_ENABLED === "true") {
     try { householdContextVerified = Boolean(await resolveVerifiedHouseholdContext()); } catch { householdContextVerified = false; }
   }
   return Response.json({
