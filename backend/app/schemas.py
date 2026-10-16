@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Literal
 from uuid import uuid4
 from pydantic import BaseModel, ConfigDict, Field
@@ -56,6 +57,14 @@ class HouseholdTaskCreateRequest(BaseModel):
     title: str = Field(min_length=1, max_length=300)
     missing_items: list[str] = Field(default_factory=list, max_length=20)
     idempotency_key: str = Field(default_factory=lambda: str(uuid4()), min_length=1, max_length=160)
+    scheduled_callback: datetime | None = None
+    timezone_name: str = Field(default="Asia/Kolkata", min_length=1, max_length=80)
+
+
+class HouseholdNotificationReadRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    notification_id: str = Field(min_length=36, max_length=36)
 
 
 class HouseholdTaskStatusRequest(BaseModel):
