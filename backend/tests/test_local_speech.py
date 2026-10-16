@@ -84,3 +84,38 @@ def test_local_tts_reports_missing_binary(monkeypatch):
     provider = local_speech.EspeakHindiTextToSpeechProvider()
     with pytest.raises(local_speech.LocalSpeechError, match="local_tts_engine_unavailable"):
         asyncio.run(provider.synthesize("नमस्ते", language="hi"))
+
+
+def test_voice_gateway_uses_local_providers_without_hosted_credentials():
+    from app.config import Settings
+    from app.local_speech import EspeakHindiTextToSpeechProvider, VoskHindiSpeechToTextProvider
+    from app.voice import VoiceGateway
+
+    settings = Settings(
+        speech_provider="local",
+        vosk_model_path="/models/vosk-model-small-hi-0.22",
+        ffmpeg_binary="ffmpeg",
+        espeak_ng_binary="espeak-ng",
+        sarvam_api_key=None,
+    )
+    gateway = VoiceGateway(settings, orchestrator=object())
+    assert isinstance(gateway.stt, VoskHindiSpeechToTextProvider)
+    assert isinstance(gateway.tts, EspeakHindiTextToSpeechProvider)
+
+
+def test_readiness_only_marks_local_speech_available_when_model_and_binaries_exist(monkeypatch):
+    import app.main as main
+    from fastapi.testclient import TestClient
+
+    monkeypatch.setattr(main.settings, "speech_provider", "local")
+    monkeypatch.setattr(main.settings, "vosk_model_path", "/models/vosk-model-small-hi-0.22")
+    monkeypatch.setattr(main.settings, "ffmpeg_binary", "ffmpeg")
+    monkeypatch.setattr(main.settings, "espeak_ng_binary", "espeak-ng")
+    monkeypatch.setattr(main.os.path, "isdir", lambda path: path == "/models/vosk-model-small-hi-0.22")
+    monkeypatch.setattr(main.shutil, "which", lambda binary: f"/usr/bin/{binary}" if binary in {"ffmpeg", "espeak-ng"} else None)
+
+    body = TestClient(main.app).get("/health/ready").json()
+    assert body["speech_provider"] == "local"
+    assert body["provider_contracts"]["speech"] is True
+    assert body["provider_contracts"]["offline_stt"] is True
+    assert body["provider_contracts"]["offline_tts"] is True
