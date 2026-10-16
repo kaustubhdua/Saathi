@@ -85,3 +85,22 @@ def test_demo_mode_does_not_claim_llm_reasoning_is_active(monkeypatch):
     body = main.readiness()
     assert body["status"] == "ready"
     assert body["provider_contracts"]["reasoning"] is False
+
+
+def test_local_ocr_readiness_requires_hindi_and_english_language_packs(monkeypatch):
+    monkeypatch.setattr(main.shutil, "which", lambda _binary: "/usr/bin/tesseract")
+
+    class ProcessResult:
+        returncode = 0
+        stdout = "List of available languages in \"/usr/share/tessdata/\":\neng\nhin\n"
+
+    monkeypatch.setattr(main.subprocess, "run", lambda *_args, **_kwargs: ProcessResult())
+    assert main._local_ocr_available("tesseract") is True
+
+    ProcessResult.stdout = "List of available languages in \"/usr/share/tessdata/\":\neng\n"
+    assert main._local_ocr_available("tesseract") is False
+
+
+def test_local_ocr_readiness_fails_when_tesseract_is_missing(monkeypatch):
+    monkeypatch.setattr(main.shutil, "which", lambda _binary: None)
+    assert main._local_ocr_available("tesseract") is False
