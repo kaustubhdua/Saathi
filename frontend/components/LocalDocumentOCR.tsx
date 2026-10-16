@@ -15,7 +15,7 @@ type OCRResult = {
 const MAX_BYTES = 8 * 1024 * 1024;
 const ACCEPTED_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "image/tiff"]);
 
-export default function LocalDocumentOCR() {
+export default function LocalDocumentOCR({ available = false }: { available?: boolean }) {
   const [file, setFile] = useState<File | null>(null);
   const [language, setLanguage] = useState("hin+eng");
   const [busy, setBusy] = useState(false);
@@ -114,10 +114,11 @@ export default function LocalDocumentOCR() {
             </select>
           </div>
         </div>
-        <button type="submit" className="run-button local-ocr-submit" disabled={busy || !file}>
+        <button type="submit" className="run-button local-ocr-submit" disabled={busy || !file || !available}>
           <Upload size={16} aria-hidden="true" /> {busy ? "Reading image…" : "Extract text locally"}
         </button>
       </form>
+      {!available && <p className="consent-note" role="status">Local OCR is unavailable on this server. Install Tesseract with Hindi/English language data and enable local OCR to use this feature.</p>}
       {busy && <p className="local-ocr-status" role="status" aria-live="polite">Processing on the Saathi server. Keep this page open.</p>}
       {error && <p className="voice-error" role="alert" aria-live="assertive">{error}</p>}
       {result && (
