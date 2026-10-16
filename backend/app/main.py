@@ -133,18 +133,20 @@ def metrics() -> dict[str, object]:
 def _ollama_model_available(base_url: str, model: str) -> bool:
     """Bounded readiness probe: true only when the configured model is actually pulled."""
     try:
-        parsed = urlsplit((base_url or "").strip())
+        normalized_base = (base_url or "").strip().rstrip("/")
+        parsed = urlsplit(normalized_base)
         if (
             parsed.scheme not in {"http", "https"}
             or not parsed.hostname
             or parsed.username is not None
             or parsed.password is not None
+            or parsed.path not in {"", "/"}
             or parsed.query
             or parsed.fragment
         ):
             return False
         with httpx.Client(timeout=1.5, trust_env=False) as client:
-            response = client.get(f"{base_url.rstrip('/')}/api/tags")
+            response = client.get(f"{normalized_base}/api/tags")
             response.raise_for_status()
             payload = response.json()
         models = payload.get("models", []) if isinstance(payload, dict) else []
