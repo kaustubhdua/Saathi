@@ -24,6 +24,9 @@ class Settings(BaseSettings):
     ffmpeg_binary: str = "ffmpeg"
     espeak_ng_binary: str = "espeak-ng"
     local_speech_timeout_seconds: float = 15.0
+    saathi_reminders_enabled: bool = False
+    reminder_worker_interval_seconds: int = 30
+    reminder_batch_size: int = 25
     bhashini_user_id: str | None = None
     bhashini_api_key: str | None = None
     bhashini_stt_endpoint: str | None = None
