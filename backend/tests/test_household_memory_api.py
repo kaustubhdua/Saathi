@@ -14,6 +14,7 @@ MEMORY_ID = "33333333-3333-4333-8333-333333333333"
 
 
 def configure_production(monkeypatch):
+    monkeypatch.setenv("SAATHI_HOUSEHOLD_FEATURES_ENABLED", "true")
     monkeypatch.setattr(
         "app.main.settings",
         SimpleNamespace(app_env="production", demo_mode=False, api_auth_token="server-token"),

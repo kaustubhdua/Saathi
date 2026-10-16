@@ -8,6 +8,7 @@ from app.main import app
 
 
 def configure_production(monkeypatch):
+    monkeypatch.setenv("SAATHI_HOUSEHOLD_FEATURES_ENABLED", "true")
     monkeypatch.setattr(
         "app.main.settings",
         SimpleNamespace(app_env="production", demo_mode=False, api_auth_token="server-token"),
