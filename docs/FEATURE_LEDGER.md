@@ -145,6 +145,6 @@ Last verified: 2026-10-15 UTC (2026-10-16 IST)
 ## Provider acceptance evidence update (2026-10-17 UTC)
 
 - Public source checks and redacted status ledger: [provider acceptance evidence](provider-acceptance/2026-10-17.md).
-- Current-main CI after household-auth merge passed all five jobs on `9d49c9daa66fb2f1b95947105c98d07d44c609be` in [run #999](https://github.com/kaustubhdua/Saathi/actions/runs/38963936286).
+- Current-main CI after household-auth merge passed all five jobs on `9d49c9daa66fb2f1b95947105c98d07d44c609be` in [run #998](https://github.com/kaustubhdua/Saathi/actions/runs/38963936286).
 - PR #86 merged the household-auth foundation behind `SAATHI_HOUSEHOLD_FEATURES_ENABLED=false`; do not enable it until durable persistence, consent/revocation, idempotency and two-household isolation are proven.
 - Authenticated Sarvam OCR/STT/TTS, current OGD/AGMARKNET adapter responses and Exotel sandbox callback acceptance remain NOT RUN. No issue is closed on the basis of public documentation or mocked CI.
