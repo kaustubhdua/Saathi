@@ -5,7 +5,6 @@ operator-installed artifact and is not downloaded at runtime.
 """
 import asyncio
 import json
-import os
 import shutil
 import subprocess
 from functools import lru_cache
