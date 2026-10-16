@@ -8,7 +8,7 @@ from zoneinfo import ZoneInfo
 from .config import get_settings
 from .escalation import EscalationPolicy, EscalationReason
 from .http_tools import DataGovMandiTool, OpenMeteoWeatherTool
-from .provider_adapters import GeminiToolRouter
+from .provider_adapters import GeminiToolRouter, OllamaToolRouter
 from .intent import classify_intent, extract_farming_entities
 from .provenance import SourceRecord, ToolResult
 from .schemas import Intent, LocationContext
@@ -123,7 +123,20 @@ class Orchestrator:
             )
         self.escalation = EscalationPolicy()
         self.scheme = PMKisanSchemeTool()
-        self.reasoning_router = GeminiToolRouter(settings.gemini_api_key, settings.llm_model) if settings.gemini_api_key and not settings.demo_mode else None
+        if settings.demo_mode:
+            self.reasoning_router = None
+        elif settings.llm_provider.casefold() == "ollama":
+            self.reasoning_router = OllamaToolRouter(
+                base_url=settings.ollama_base_url,
+                model=settings.llm_model,
+                timeout_seconds=settings.ollama_timeout_seconds,
+            )
+        elif settings.llm_provider.casefold() == "gemini" and settings.gemini_api_key:
+            self.reasoning_router = GeminiToolRouter(settings.gemini_api_key, settings.llm_model)
+        else:
+            # Unknown or unconfigured providers disable optional reasoning; deterministic
+            # intent and tool policy remain the source of truth.
+            self.reasoning_router = None
 
     def _tool_name(self, intent: Intent, tool_name: str) -> str:
         if not ToolPolicy.permits(intent, tool_name):
