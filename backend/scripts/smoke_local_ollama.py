@@ -14,8 +14,10 @@ import asyncio
 import json
 import os
 import sys
+from pathlib import Path
 from time import perf_counter
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from app.provider_adapters import OllamaToolRouter
 
 
@@ -34,7 +36,6 @@ async def main() -> int:
             "provider": "ollama-local",
             "model": model,
             "error_type": type(exc).__name__,
-            "error": str(exc)[:300],
             "latency_ms": round((perf_counter() - started) * 1000, 1),
         }, ensure_ascii=False))
         return 1
