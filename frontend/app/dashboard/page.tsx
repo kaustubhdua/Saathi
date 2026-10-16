@@ -18,6 +18,7 @@ type ReadyCapabilities = { core_agent?: boolean; telephony?: boolean; telephony_
 type ConsentSnapshot = { memory: { granted: boolean; recorded_at: string | null }; outbound_calls: { granted: boolean; recorded_at: string | null } };
 type HouseholdTask = { task_id: string; title: string; status: "pending" | "completed" | "cancelled" | "escalated"; missing_items: string[]; scheduled_callback: string | null; timezone_name?: string };
 type HouseholdNotification = { notification_id: string; task_id: string; title: string; body: string; created_at: string; read_at: string | null };
+type HouseholdNotification = { notification_id: string; task_id: string; title: string; body: string; created_at: string; read_at: string | null };
 type HouseholdMemory = { memory_id: string; memory_type: string; key_name: string; value_text: string; source: "user_confirmed" | string; updated_at: string | null; expires_at: string | null };
 
 type BrowserSpeechRecognition = {
@@ -98,6 +99,10 @@ export default function Dashboard() {
   const [memoryMessage, setMemoryMessage] = useState<string | null>(null);
   const [householdTasks, setHouseholdTasks] = useState<HouseholdTask[] | null>(null);
   const [taskTitle, setTaskTitle] = useState("");
+  const [taskReminderAt, setTaskReminderAt] = useState("");
+  const [householdNotifications, setHouseholdNotifications] = useState<HouseholdNotification[] | null>(null);
+  const [notificationError, setNotificationError] = useState<string | null>(null);
+  const [notificationBusy, setNotificationBusy] = useState(false);
   const [taskReminderAt, setTaskReminderAt] = useState("");
   const [householdNotifications, setHouseholdNotifications] = useState<HouseholdNotification[] | null>(null);
   const [notificationError, setNotificationError] = useState<string | null>(null);
