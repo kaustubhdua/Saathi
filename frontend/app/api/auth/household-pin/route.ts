@@ -17,6 +17,7 @@ function validOrigin(request: Request) {
 }
 
 export async function GET() {
+  if (process.env.SAATHI_HOUSEHOLD_FEATURES_ENABLED !== "true") return Response.json({ detail: "household_features_disabled" }, { status: 503, headers: { "Cache-Control": "no-store" } });
   try {
     const user = await getVerifiedPhoneUser();
     if (!user) return Response.json({ detail: "verified_phone_identity_required" }, { status: 401, headers: { "Cache-Control": "no-store" } });
@@ -28,6 +29,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  if (process.env.SAATHI_HOUSEHOLD_FEATURES_ENABLED !== "true") return Response.json({ detail: "household_features_disabled" }, { status: 503, headers: { "Cache-Control": "no-store" } });
   if (!validOrigin(request)) return Response.json({ detail: "origin_not_allowed" }, { status: 403 });
   if (!(request.headers.get("content-type") || "").toLowerCase().startsWith("application/json")) return Response.json({ detail: "application_json_required" }, { status: 415, headers: { "Cache-Control": "no-store" } });
   const parsed = await readBoundedJson(request);

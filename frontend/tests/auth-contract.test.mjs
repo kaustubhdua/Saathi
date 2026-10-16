@@ -128,3 +128,11 @@ test("auth mutations require JSON and use a bounded streaming parser", () => {
   assert.match(requestReader, /request_body_timeout/);
   assert.match(requestReader, /new TextDecoder\("utf-8", \{ fatal: true \}\)/);
 });
+
+test("OTP and household PIN entry points require the explicit household feature flag", () => {
+  for (const route of [read("../app/api/auth/otp/route.ts"), read("../app/api/auth/verify/route.ts"), read("../app/api/auth/household-pin/route.ts")]) {
+    assert.match(route, /SAATHI_HOUSEHOLD_FEATURES_ENABLED !== "true"/);
+    assert.match(route, /household_features_disabled/);
+  }
+  assert.match(backendProxyRoute, /SAATHI_HOUSEHOLD_FEATURES_ENABLED !== "true"/);
+});
