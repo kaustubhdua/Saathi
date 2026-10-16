@@ -103,10 +103,6 @@ export default function Dashboard() {
   const [householdNotifications, setHouseholdNotifications] = useState<HouseholdNotification[] | null>(null);
   const [notificationError, setNotificationError] = useState<string | null>(null);
   const [notificationBusy, setNotificationBusy] = useState(false);
-  const [taskReminderAt, setTaskReminderAt] = useState("");
-  const [householdNotifications, setHouseholdNotifications] = useState<HouseholdNotification[] | null>(null);
-  const [notificationError, setNotificationError] = useState<string | null>(null);
-  const [notificationBusy, setNotificationBusy] = useState(false);
   const [taskBusy, setTaskBusy] = useState(false);
   const [taskError, setTaskError] = useState<string | null>(null);
   const [taskMessage, setTaskMessage] = useState<string | null>(null);
