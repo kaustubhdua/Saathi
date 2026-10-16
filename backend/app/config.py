@@ -8,8 +8,10 @@ class Settings(BaseSettings):
     supabase_url: str | None = None
     supabase_publishable_key: str | None = None
     supabase_secret_key: str | None = None
-    llm_provider: str = "gemini"
-    llm_model: str = "gemini-3.8-flash"
+    llm_provider: str = "ollama"
+    llm_model: str = "qwen2.5:3b"
+    ollama_base_url: str = "http://127.0.0.1:11434"
+    ollama_timeout_seconds: float = 20.0
     gemini_api_key: str | None = None
     openai_api_key: str | None = None
     openai_model: str | None = None
