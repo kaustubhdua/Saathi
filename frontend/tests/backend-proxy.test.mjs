@@ -11,7 +11,7 @@ function proxyRequest(request, segments, options = {}) {
 
 const originalFetch = globalThis.fetch;
 const originalEnv = { ...process.env };
-function setup() { _resetRateLimitForTests(); process.env.NODE_ENV = "production"; process.env.BACKEND_API_URL = "https://api.example.test"; process.env.SAATHI_API_AUTH_TOKEN = "x".repeat(40); process.env.UPSTASH_REDIS_REST_URL = "https://saathi-test.upstash.io"; process.env.UPSTASH_REDIS_REST_TOKEN = "test-only-token-not-a-secret"; process.env.SAATHI_TRUSTED_CLIENT_IP_HEADER = "x-real-ip"; process.env.SAATHI_HOUSEHOLD_FEATURES_ENABLED = "true"; }
+function setup() { _resetRateLimitForTests(); delete process.env.APP_ENV; delete process.env.SAATHI_LOCAL_RATE_LIMITER_ENABLED; process.env.NODE_ENV = "production"; process.env.BACKEND_API_URL = "https://api.example.test"; process.env.SAATHI_API_AUTH_TOKEN = "x".repeat(40); process.env.UPSTASH_REDIS_REST_URL = "https://saathi-test.upstash.io"; process.env.UPSTASH_REDIS_REST_TOKEN = "test-only-token-not-a-secret"; process.env.SAATHI_TRUSTED_CLIENT_IP_HEADER = "x-real-ip"; process.env.SAATHI_HOUSEHOLD_FEATURES_ENABLED = "true"; }
 function req(path, init = {}, ip = "192.0.2.10") { return new Request("https://web.example.test/backend/" + path, { ...init, headers: { "x-real-ip": ip, ...(init.headers || {}) } }); }
 test.afterEach(() => {
   globalThis.fetch = originalFetch;
