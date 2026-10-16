@@ -8,6 +8,8 @@ def test_reminder_worker_stays_closed_without_both_feature_flags(monkeypatch):
     monkeypatch.setattr(reminder_worker.get_settings(), "saathi_reminders_enabled", True)
     monkeypatch.setattr(reminder_worker.get_settings(), "supabase_url", "https://supabase.example.test")
     monkeypatch.setattr(reminder_worker.get_settings(), "supabase_secret_key", "test-secret")
+    monkeypatch.setattr(reminder_worker.get_settings(), "supabase_url", "https://supabase.example.test")
+    monkeypatch.setattr(reminder_worker.get_settings(), "supabase_secret_key", "test-secret")
     called = False
 
     class FakeRepository:
@@ -24,6 +26,8 @@ def test_reminder_worker_stays_closed_without_both_feature_flags(monkeypatch):
 def test_reminder_worker_reports_count_without_logging_task_content(monkeypatch):
     monkeypatch.setenv("SAATHI_HOUSEHOLD_FEATURES_ENABLED", "true")
     monkeypatch.setattr(reminder_worker.get_settings(), "saathi_reminders_enabled", True)
+    monkeypatch.setattr(reminder_worker.get_settings(), "supabase_url", "https://supabase.example.test")
+    monkeypatch.setattr(reminder_worker.get_settings(), "supabase_secret_key", "test-secret")
     events = []
 
     class FakeRepository:
@@ -40,6 +44,8 @@ def test_reminder_worker_reports_count_without_logging_task_content(monkeypatch)
 def test_reminder_worker_fails_closed_on_persistence_errors(monkeypatch):
     monkeypatch.setenv("SAATHI_HOUSEHOLD_FEATURES_ENABLED", "true")
     monkeypatch.setattr(reminder_worker.get_settings(), "saathi_reminders_enabled", True)
+    monkeypatch.setattr(reminder_worker.get_settings(), "supabase_url", "https://supabase.example.test")
+    monkeypatch.setattr(reminder_worker.get_settings(), "supabase_secret_key", "test-secret")
     events = []
 
     class FakeRepository:
