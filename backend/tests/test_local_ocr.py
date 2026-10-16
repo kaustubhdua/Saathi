@@ -5,7 +5,7 @@ import pytest
 from app import local_ocr
 
 
-PNG = b"\\x89PNG\\r\\n\\x1a\\n" + b"fixture"
+PNG = b"\x89PNG\r\n\x1a\n" + b"fixture"
 
 
 def test_local_ocr_parses_text_and_confidence_without_network(monkeypatch):
@@ -20,11 +20,11 @@ def test_local_ocr_parses_text_and_confidence_without_network(monkeypatch):
             command,
             0,
             stdout=(
-                "level\\tpage_num\\tblock_num\\tpar_num\\tline_num\\tword_num\\tleft\\ttop\\twidth\\theight\\tconf\\ttext\\n"
-                "5\\t1\\t1\\t1\\t1\\t1\\t0\\t0\\t20\\t10\\t91.5\\tKisan\\n"
-                "5\\t1\\t1\\t1\\t1\\t2\\t20\\t0\\t20\\t10\\t88.5\\tCard\\n"
-            ),
-            stderr="",
+                "level\tpage_num\tblock_num\tpar_num\tline_num\tword_num\tleft\ttop\twidth\theight\tconf\ttext\n"
+                "5\t1\t1\t1\t1\t1\t0\t0\t20\t10\t91.5\tKisan\n"
+                "5\t1\t1\t1\t1\t2\t20\t0\t20\t10\t88.5\tCard\n"
+            ).encode("utf-8"),
+            stderr=b"",
         )
 
     monkeypatch.setattr(local_ocr.subprocess, "run", fake_run)
@@ -51,7 +51,7 @@ def test_local_ocr_fails_clearly_when_engine_missing(monkeypatch):
         local_ocr.extract_local_ocr(PNG, content_type="image/png")
 
 
-def test_local_ocr_timeout_is_bounded_and_requests_human_review_for_low_confidence(monkeypatch):
+def test_local_ocr_timeout_is_bounded(monkeypatch):
     monkeypatch.setattr(local_ocr.shutil, "which", lambda name: "/usr/bin/tesseract")
 
     def timeout_run(command, **kwargs):
@@ -61,3 +61,9 @@ def test_local_ocr_timeout_is_bounded_and_requests_human_review_for_low_confiden
     monkeypatch.setattr(local_ocr.subprocess, "run", timeout_run)
     with pytest.raises(local_ocr.LocalOCRError, match="local_ocr_timeout"):
         local_ocr.extract_local_ocr(PNG, content_type="image/png", timeout_seconds=500)
+
+
+def test_local_ocr_rejects_invalid_language(monkeypatch):
+    monkeypatch.setattr(local_ocr.shutil, "which", lambda name: "/usr/bin/tesseract")
+    with pytest.raises(ValueError, match="invalid_ocr_language"):
+        local_ocr.extract_local_ocr(PNG, content_type="image/png", language="hin;rm -rf /")
