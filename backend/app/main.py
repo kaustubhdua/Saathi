@@ -100,7 +100,16 @@ def readiness() -> dict[str, object]:
         and getattr(settings, "telephony_callback_url", None)
         and getattr(settings, "telephony_callback_signature_verified", False)
     )
-    reasoning = bool(getattr(settings, "gemini_api_key", None) or getattr(settings, "openai_api_key", None))
+    reasoning_provider = str(getattr(settings, "llm_provider", "gemini")).casefold()
+    if reasoning_provider == "ollama":
+        # This reports local configuration, not proof that the model is downloaded or reachable.
+        reasoning = bool(getattr(settings, "ollama_base_url", None) and getattr(settings, "llm_model", None))
+    elif reasoning_provider == "gemini":
+        reasoning = bool(getattr(settings, "gemini_api_key", None))
+    elif reasoning_provider == "openai":
+        reasoning = bool(getattr(settings, "openai_api_key", None))
+    else:
+        reasoning = False
     mandi = bool(settings.mandi_api_key and settings.mandi_resource_id)
     speech = bool(
         (settings.bhashini_api_key and settings.bhashini_stt_endpoint and settings.bhashini_tts_endpoint)
@@ -115,6 +124,7 @@ def readiness() -> dict[str, object]:
         "status": "not_ready" if missing_requirements else "ready",
         "missing_requirements": missing_requirements,
         "demo_mode": settings.demo_mode,
+        "reasoning_provider": reasoning_provider,
         "provider_contracts": {
             "core_agent": True,
             "telephony": telephony,
