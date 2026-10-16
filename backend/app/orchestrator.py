@@ -209,11 +209,13 @@ class Orchestrator:
                             tool_name="get_weather",
                         )
                 if selected and selected.name == "get_mandi_price" and intent == "farming" and self.mandi is not None:
-                    args = selected.arguments
-                    commodity = str(args.get("commodity") or "").strip()
-                    state = str(args.get("state") or "").strip()
-                    district = str(args.get("district") or "").strip() or None
-                    if commodity and state:
+                    # The model may select a data tool, but user entities come only
+                    # from deterministic extraction—not model-generated geography/crops.
+                    entities = extract_farming_entities(message)
+                    commodity = entities.commodity
+                    state = entities.state
+                    district = entities.district or entities.market
+                    if commodity and state and district:
                         result = await self.mandi.price(commodity=commodity, state=state, district=district)
                         if result.ok:
                             data = result.data
