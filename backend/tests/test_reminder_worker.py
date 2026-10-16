@@ -6,6 +6,8 @@ from app import reminder_worker
 def test_reminder_worker_stays_closed_without_both_feature_flags(monkeypatch):
     monkeypatch.setenv("SAATHI_HOUSEHOLD_FEATURES_ENABLED", "false")
     monkeypatch.setattr(reminder_worker.get_settings(), "saathi_reminders_enabled", True)
+    monkeypatch.setattr(reminder_worker.get_settings(), "supabase_url", "https://supabase.example.test")
+    monkeypatch.setattr(reminder_worker.get_settings(), "supabase_secret_key", "test-secret")
     called = False
 
     class FakeRepository:
