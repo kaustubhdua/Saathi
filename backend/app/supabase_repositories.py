@@ -263,6 +263,7 @@ class SupabaseTaskRepository(_SupabaseRepository):
                 if scheduled
                 else None
             ),
+            timezone_name=str(row.get("timezone_name") or "Asia/Kolkata"),
         )
 
     async def create(self, task: Task) -> Task:
@@ -275,7 +276,15 @@ class SupabaseTaskRepository(_SupabaseRepository):
             "status": task.status.value,
             "missing_requirements": task.missing_items,
             "scheduled_callback": task.scheduled_callback.isoformat() if task.scheduled_callback else None,
+            "timezone_name": task.timezone_name,
             "idempotency_key": idempotency_key,
+        }
+        if task.scheduled_callback is not None and get_settings().saathi_reminders_enabled:
+            payload["reminder_status"] = "scheduled"
+        # Household reminders remain feature-gated until the proposed migration is applied.
+        if task.scheduled_callback is not None and not get_settings().saathi_reminders_enabled:
+            raise SupabaseRepositoryError("reminders_disabled")
+        payload = payload
         }
         try:
             rows = await self._request("POST", "saathi_pending_tasks", payload)
@@ -284,7 +293,7 @@ class SupabaseTaskRepository(_SupabaseRepository):
                 raise
             rows = await self._request(
                 "GET",
-                f"saathi_pending_tasks?household_id=eq.{household_uuid}&idempotency_key=eq.{encoded_idempotency_key}&select=id,household_id,title,status,missing_requirements,scheduled_callback",
+                f"saathi_pending_tasks?household_id=eq.{household_uuid}&idempotency_key=eq.{encoded_idempotency_key}&select=id,household_id,title,status,missing_requirements,scheduled_callback,timezone_name",
             )
         if not rows:
             raise SupabaseRepositoryError("task_create_failed")
@@ -297,7 +306,7 @@ class SupabaseTaskRepository(_SupabaseRepository):
         household_uuid = self._uuid(household_id)
         rows = await self._request(
             "GET",
-            f"saathi_pending_tasks?household_id=eq.{household_uuid}&status=eq.pending&select=id,household_id,title,status,missing_requirements,scheduled_callback&order=created_at.desc",
+            f"saathi_pending_tasks?household_id=eq.{household_uuid}&status=eq.pending&select=id,household_id,title,status,missing_requirements,scheduled_callback,timezone_name&order=created_at.desc",
         )
         tasks = [self._to_task(row) for row in rows]
         if any(task.household_id != household_uuid for task in tasks):
@@ -307,10 +316,16 @@ class SupabaseTaskRepository(_SupabaseRepository):
     async def set_status(self, *, household_id: str, task_id: str, status: TaskStatus) -> Task:
         household_uuid = self._uuid(household_id)
         task_uuid = self._uuid(task_id)
+        now = datetime.now(timezone.utc).isoformat()
+        payload: dict[str, object] = {"status": status.value, "updated_at": now}
+        if status == TaskStatus.CANCELLED:
+            payload["cancelled_at"] = now
+            if get_settings().saathi_reminders_enabled:
+                payload["reminder_status"] = "cancelled"
         rows = await self._request(
             "PATCH",
-            f"saathi_pending_tasks?id=eq.{task_uuid}&household_id=eq.{household_uuid}&select=id,household_id,title,status,missing_requirements,scheduled_callback",
-            {"status": status.value, "updated_at": datetime.now(timezone.utc).isoformat()},
+            f"saathi_pending_tasks?id=eq.{task_uuid}&household_id=eq.{household_uuid}&select=id,household_id,title,status,missing_requirements,scheduled_callback,timezone_name",
+            payload,
         )
         if not rows:
             raise KeyError("task_not_found")
@@ -450,3 +465,46 @@ class SupabaseCallRepository(_SupabaseRepository):
         )
         return effective
 
+
+
+class SupabaseReminderRepository(_SupabaseRepository):
+    """Persistent in-app reminder queue. No outbound calls or push service is used."""
+
+    async def deliver_due(self, *, batch_size: int = 25) -> list[dict[str, object]]:
+        if batch_size < 1 or batch_size > 100:
+            raise ValueError("reminder_batch_size_out_of_range")
+        return await self._request(
+            "POST",
+            "rpc/saathi_deliver_due_reminders",
+            {"p_batch_size": batch_size},
+        )
+
+    async def list_for_household(self, *, household_id: str, limit: int = 20) -> list[dict[str, object]]:
+        household_uuid = self._uuid(household_id)
+        safe_limit = max(1, min(int(limit), 50))
+        rows = await self._request(
+            "GET",
+            f"saathi_in_app_notifications?household_id=eq.{household_uuid}&select=id,task_id,title,body,created_at,read_at&order=created_at.desc&limit={safe_limit}",
+        )
+        notifications = [
+            {
+                "notification_id": str(row["id"]),
+                "task_id": str(row["task_id"]),
+                "title": str(row["title"]),
+                "body": str(row["body"]),
+                "created_at": row.get("created_at"),
+                "read_at": row.get("read_at"),
+            }
+            for row in rows
+        ]
+        return notifications
+
+    async def mark_read(self, *, household_id: str, notification_id: str) -> bool:
+        household_uuid = self._uuid(household_id)
+        notification_uuid = self._uuid(notification_id)
+        rows = await self._request(
+            "PATCH",
+            f"saathi_in_app_notifications?id=eq.{notification_uuid}&household_id=eq.{household_uuid}&select=id",
+            {"read_at": datetime.now(timezone.utc).isoformat()},
+        )
+        return bool(rows)
