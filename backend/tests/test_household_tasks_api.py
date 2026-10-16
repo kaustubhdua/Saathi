@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
 from fastapi.testclient import TestClient
@@ -15,7 +16,7 @@ def configure_production(monkeypatch):
     monkeypatch.setenv("SAATHI_HOUSEHOLD_FEATURES_ENABLED", "true")
     monkeypatch.setattr(
         "app.main.settings",
-        SimpleNamespace(app_env="production", demo_mode=False, api_auth_token="server-token"),
+        SimpleNamespace(app_env="production", demo_mode=False, api_auth_token="server-token", saathi_reminders_enabled=False),
     )
 
 
@@ -55,6 +56,7 @@ def test_task_create_scopes_household_and_idempotency_to_verified_identity(monke
         "status": "pending",
         "missing_items": ["land record"],
         "scheduled_callback": None,
+        "timezone_name": "Asia/Kolkata",
     }
     assert captured["task"].household_id == HOUSEHOLD_ID
     assert captured["task"].status == TaskStatus.PENDING
@@ -116,3 +118,102 @@ def test_household_features_are_disabled_without_explicit_flag(monkeypatch):
     response = TestClient(app).get("/api/v1/household/tasks", headers=headers())
     assert response.status_code == 503
     assert response.json()["detail"] == "household_features_disabled"
+
+
+def test_task_schedule_is_disabled_until_reminder_migration_is_approved(monkeypatch):
+    configure_production(monkeypatch)
+    called = False
+
+    async def create(self, task):
+        nonlocal called
+        called = True
+        return task
+
+    monkeypatch.setattr("app.main.SupabaseTaskRepository.create", create)
+    future = (datetime.now(timezone.utc) + timedelta(hours=2)).isoformat()
+    response = TestClient(app).post(
+        "/api/v1/household/tasks",
+        headers=headers(),
+        json={"title": "Submit form", "scheduled_callback": future, "timezone_name": "Asia/Kolkata"},
+    )
+    assert response.status_code == 503
+    assert response.json()["detail"] == "reminders_disabled"
+    assert called is False
+
+
+def test_task_schedule_is_normalized_and_scoped_when_feature_enabled(monkeypatch):
+    configure_production(monkeypatch)
+    monkeypatch.setattr("app.main.settings.saathi_reminders_enabled", True)
+    captured = {}
+
+    async def create(self, task):
+        captured["task"] = task
+        return task.model_copy(update={"task_id": TASK_ID})
+
+    monkeypatch.setattr("app.main.SupabaseTaskRepository.create", create)
+    future = datetime.now(timezone.utc) + timedelta(hours=2)
+    response = TestClient(app).post(
+        "/api/v1/household/tasks",
+        headers=headers(),
+        json={
+            "title": "Submit form",
+            "scheduled_callback": future.isoformat(),
+            "timezone_name": "Asia/Kolkata",
+            "idempotency_key": "scheduled-task-1",
+        },
+    )
+    assert response.status_code == 200
+    assert captured["task"].scheduled_callback.tzinfo is not None
+    assert captured["task"].timezone_name == "Asia/Kolkata"
+    assert captured["task"].household_id == HOUSEHOLD_ID
+    assert response.json()["scheduled_callback"] is not None
+
+
+def test_task_schedule_rejects_invalid_timezone(monkeypatch):
+    configure_production(monkeypatch)
+    monkeypatch.setattr("app.main.settings.saathi_reminders_enabled", True)
+    future = (datetime.now(timezone.utc) + timedelta(hours=2)).isoformat()
+    response = TestClient(app).post(
+        "/api/v1/household/tasks",
+        headers=headers(),
+        json={"title": "Submit form", "scheduled_callback": future, "timezone_name": "Not/A_Timezone"},
+    )
+    assert response.status_code == 422
+    assert response.json()["detail"] == "invalid_task_timezone"
+
+
+def test_notification_list_is_household_scoped(monkeypatch):
+    configure_production(monkeypatch)
+    monkeypatch.setattr("app.main.settings.saathi_reminders_enabled", True)
+    captured = {}
+
+    async def list_for_household(self, *, household_id, limit=20):
+        captured["household_id"] = household_id
+        return [{"notification_id": "55555555-5555-4555-8555-555555555555", "task_id": TASK_ID, "title": "Reminder", "body": "Submit form", "created_at": "2026-10-17T10:00:00Z", "read_at": None}]
+
+    monkeypatch.setattr("app.main.SupabaseReminderRepository.list_for_household", list_for_household)
+    response = TestClient(app).get("/api/v1/household/notifications", headers=headers())
+    assert response.status_code == 200
+    assert captured["household_id"] == HOUSEHOLD_ID
+    assert response.json()["notifications"][0]["task_id"] == TASK_ID
+
+
+def test_notification_read_is_household_scoped(monkeypatch):
+    configure_production(monkeypatch)
+    monkeypatch.setattr("app.main.settings.saathi_reminders_enabled", True)
+    captured = {}
+
+    async def mark_read(self, *, household_id, notification_id):
+        captured.update(household_id=household_id, notification_id=notification_id)
+        return True
+
+    monkeypatch.setattr("app.main.SupabaseReminderRepository.mark_read", mark_read)
+    notification_id = "55555555-5555-4555-8555-555555555555"
+    response = TestClient(app).post(
+        "/api/v1/household/notifications/read",
+        headers=headers(),
+        json={"notification_id": notification_id},
+    )
+    assert response.status_code == 200
+    assert response.json() == {"notification_id": notification_id, "read": True}
+    assert captured == {"household_id": HOUSEHOLD_ID, "notification_id": notification_id}
