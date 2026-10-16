@@ -7,7 +7,10 @@ import json
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+for candidate in (Path(__file__).resolve().parents[1], Path("/app"), Path(__file__).resolve().parents[2] / "backend"):
+    if (candidate / "app").is_dir():
+        sys.path.insert(0, str(candidate))
+        break
 from app.local_ocr import extract_local_ocr
 
 # Synthetic, non-personal 560x150 PNG: "किसान कार्ड" / "Kisan Card".
