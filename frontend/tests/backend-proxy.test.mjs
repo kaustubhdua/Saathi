@@ -11,11 +11,11 @@ function proxyRequest(request, segments, options = {}) {
 
 const originalFetch = globalThis.fetch;
 const originalEnv = { ...process.env };
-function setup() { _resetRateLimitForTests(); process.env.NODE_ENV = "production"; process.env.BACKEND_API_URL = "https://api.example.test"; process.env.SAATHI_API_AUTH_TOKEN = "x".repeat(40); process.env.UPSTASH_REDIS_REST_URL = "https://saathi-test.upstash.io"; process.env.UPSTASH_REDIS_REST_TOKEN = "test-only-token-not-a-secret"; process.env.SAATHI_TRUSTED_CLIENT_IP_HEADER = "x-real-ip"; }
+function setup() { _resetRateLimitForTests(); process.env.NODE_ENV = "production"; process.env.BACKEND_API_URL = "https://api.example.test"; process.env.SAATHI_API_AUTH_TOKEN = "x".repeat(40); process.env.UPSTASH_REDIS_REST_URL = "https://saathi-test.upstash.io"; process.env.UPSTASH_REDIS_REST_TOKEN = "test-only-token-not-a-secret"; process.env.SAATHI_TRUSTED_CLIENT_IP_HEADER = "x-real-ip"; process.env.SAATHI_HOUSEHOLD_FEATURES_ENABLED = "true"; }
 function req(path, init = {}, ip = "192.0.2.10") { return new Request("https://web.example.test/backend/" + path, { ...init, headers: { "x-real-ip": ip, ...(init.headers || {}) } }); }
 test.afterEach(() => {
   globalThis.fetch = originalFetch;
-  for (const key of ["NODE_ENV", "BACKEND_API_URL", "SAATHI_API_AUTH_TOKEN", "UPSTASH_REDIS_REST_URL", "UPSTASH_REDIS_REST_TOKEN", "SAATHI_TRUSTED_CLIENT_IP_HEADER"]) { if (originalEnv[key] === undefined) delete process.env[key]; else process.env[key] = originalEnv[key]; }
+  for (const key of ["NODE_ENV", "BACKEND_API_URL", "SAATHI_API_AUTH_TOKEN", "UPSTASH_REDIS_REST_URL", "UPSTASH_REDIS_REST_TOKEN", "SAATHI_TRUSTED_CLIENT_IP_HEADER", "SAATHI_HOUSEHOLD_FEATURES_ENABLED"]) { if (originalEnv[key] === undefined) delete process.env[key]; else process.env[key] = originalEnv[key]; }
   _resetRateLimitForTests();
 });
 test("rejects unlisted routes without contacting upstream", async () => { setup(); let called = false; globalThis.fetch = async () => { called = true; }; const r = await proxyRequest(req("api/v1/telephony/call", { method: "POST" }), ["api","v1","telephony","call"]); assert.equal(r.status, 404); assert.equal(called, false); });
@@ -261,4 +261,19 @@ test("household JSON routes reject non-JSON content types", async () => {
   );
   assert.equal(response.status, 415);
   assert.equal((await response.json()).detail, "application_json_required");
+});
+
+
+test("household routes are disabled unless an operator explicitly enables them", async () => {
+  setup();
+  delete process.env.SAATHI_HOUSEHOLD_FEATURES_ENABLED;
+  let called = false;
+  globalThis.fetch = async () => { called = true; throw Error("must not fetch"); };
+  const response = await proxyRequest(
+    req("api/v1/household/tasks", { method: "GET" }),
+    ["api","v1","household","tasks"],
+  );
+  assert.equal(response.status, 503);
+  assert.equal((await response.json()).detail, "household_features_disabled");
+  assert.equal(called, false);
 });

@@ -12,6 +12,7 @@ TASK_ID = "33333333-3333-4333-8333-333333333333"
 
 
 def configure_production(monkeypatch):
+    monkeypatch.setenv("SAATHI_HOUSEHOLD_FEATURES_ENABLED", "true")
     monkeypatch.setattr(
         "app.main.settings",
         SimpleNamespace(app_env="production", demo_mode=False, api_auth_token="server-token"),
@@ -108,3 +109,10 @@ def test_task_status_update_returns_not_found_for_other_household(monkeypatch):
         json={"task_id": TASK_ID, "status": "cancelled"},
     )
     assert response.status_code == 404
+
+def test_household_features_are_disabled_without_explicit_flag(monkeypatch):
+    configure_production(monkeypatch)
+    monkeypatch.delenv("SAATHI_HOUSEHOLD_FEATURES_ENABLED", raising=False)
+    response = TestClient(app).get("/api/v1/household/tasks", headers=headers())
+    assert response.status_code == 503
+    assert response.json()["detail"] == "household_features_disabled"

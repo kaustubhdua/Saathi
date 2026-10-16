@@ -2,6 +2,7 @@ from base64 import b64encode
 from datetime import datetime, timezone
 from hmac import compare_digest
 from ipaddress import ip_address
+import os
 from urllib.parse import urlsplit
 from time import perf_counter
 from uuid import UUID
@@ -136,6 +137,13 @@ def _authorize_api_request(supplied_key: str | None) -> None:
         raise HTTPException(status_code=503, detail="api_authentication_not_configured")
     if not supplied_key or not compare_digest(supplied_key, settings.api_auth_token):
         raise HTTPException(status_code=401, detail="api_authentication_required")
+
+
+
+def _require_household_features_enabled() -> None:
+    enabled = os.getenv("SAATHI_HOUSEHOLD_FEATURES_ENABLED", "false").strip().lower()
+    if enabled not in {"1", "true", "yes"}:
+        raise HTTPException(status_code=503, detail="household_features_disabled")
 
 
 def _authorize_household_context(
@@ -419,6 +427,7 @@ async def get_household_consent(
     x_saathi_verified_identity: str | None = Header(default=None),
 ) -> dict[str, object]:
     _authorize_api_request(x_saathi_api_key)
+    _require_household_features_enabled()
     household_id = _authorize_household_context(None, x_saathi_verified_household, x_saathi_verified_identity)
     if not household_id:
         raise HTTPException(status_code=401, detail="verified_phone_identity_required")
@@ -442,6 +451,7 @@ async def update_household_consent(
     x_saathi_verified_identity: str | None = Header(default=None),
 ) -> dict[str, object]:
     _authorize_api_request(x_saathi_api_key)
+    _require_household_features_enabled()
     household_id = _authorize_household_context(None, x_saathi_verified_household, x_saathi_verified_identity)
     if not household_id:
         raise HTTPException(status_code=401, detail="verified_phone_identity_required")
@@ -466,6 +476,7 @@ async def list_household_memories(
     x_saathi_verified_identity: str | None = Header(default=None),
 ) -> dict[str, object]:
     _authorize_api_request(x_saathi_api_key)
+    _require_household_features_enabled()
     household_id = _authorize_household_context(None, x_saathi_verified_household, x_saathi_verified_identity)
     if not household_id:
         raise HTTPException(status_code=401, detail="verified_phone_identity_required")
@@ -487,6 +498,7 @@ async def save_household_memory(
     x_saathi_verified_identity: str | None = Header(default=None),
 ) -> dict[str, object]:
     _authorize_api_request(x_saathi_api_key)
+    _require_household_features_enabled()
     household_id = _authorize_household_context(None, x_saathi_verified_household, x_saathi_verified_identity)
     if not household_id:
         raise HTTPException(status_code=401, detail="verified_phone_identity_required")
@@ -523,6 +535,7 @@ async def delete_household_memory(
     x_saathi_verified_identity: str | None = Header(default=None),
 ) -> dict[str, object]:
     _authorize_api_request(x_saathi_api_key)
+    _require_household_features_enabled()
     household_id = _authorize_household_context(None, x_saathi_verified_household, x_saathi_verified_identity)
     if not household_id:
         raise HTTPException(status_code=401, detail="verified_phone_identity_required")
@@ -544,6 +557,7 @@ async def list_household_tasks(
     x_saathi_verified_identity: str | None = Header(default=None),
 ) -> dict[str, object]:
     _authorize_api_request(x_saathi_api_key)
+    _require_household_features_enabled()
     household_id = _authorize_household_context(None, x_saathi_verified_household, x_saathi_verified_identity)
     if not household_id:
         raise HTTPException(status_code=401, detail="verified_phone_identity_required")
@@ -562,6 +576,7 @@ async def create_household_task(
     x_saathi_verified_identity: str | None = Header(default=None),
 ) -> dict[str, object]:
     _authorize_api_request(x_saathi_api_key)
+    _require_household_features_enabled()
     household_id = _authorize_household_context(None, x_saathi_verified_household, x_saathi_verified_identity)
     if not household_id:
         raise HTTPException(status_code=401, detail="verified_phone_identity_required")
@@ -596,6 +611,7 @@ async def update_household_task_status(
     x_saathi_verified_identity: str | None = Header(default=None),
 ) -> dict[str, object]:
     _authorize_api_request(x_saathi_api_key)
+    _require_household_features_enabled()
     household_id = _authorize_household_context(None, x_saathi_verified_household, x_saathi_verified_identity)
     if not household_id:
         raise HTTPException(status_code=401, detail="verified_phone_identity_required")
