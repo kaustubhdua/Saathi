@@ -14,9 +14,10 @@ import {
 
 type Source = { name: string; url: string; retrieved_at?: string | null; freshness_note?: string | null; freshness_status?: string | null };
 type Evidence = { name: string; url: string; retrieved_at?: string | null; freshness_note?: string | null; freshness_status?: string | null };
-type ReadyCapabilities = { core_agent?: boolean; telephony?: boolean; telephony_realtime?: boolean; reasoning?: boolean; mandi?: boolean; speech?: boolean; weather?: boolean; documents?: boolean; local_ocr?: boolean };
+type ReadyCapabilities = { core_agent?: boolean; telephony?: boolean; telephony_realtime?: boolean; reasoning?: boolean; mandi?: boolean; speech?: boolean; weather?: boolean; documents?: boolean; local_ocr?: boolean; reminders_configured?: boolean };
 type ConsentSnapshot = { memory: { granted: boolean; recorded_at: string | null }; outbound_calls: { granted: boolean; recorded_at: string | null } };
-type HouseholdTask = { task_id: string; title: string; status: "pending" | "completed" | "cancelled" | "escalated"; missing_items: string[]; scheduled_callback: string | null };
+type HouseholdTask = { task_id: string; title: string; status: "pending" | "completed" | "cancelled" | "escalated"; missing_items: string[]; scheduled_callback: string | null; timezone_name?: string };
+type HouseholdNotification = { notification_id: string; task_id: string; title: string; body: string; created_at: string; read_at: string | null };
 type HouseholdMemory = { memory_id: string; memory_type: string; key_name: string; value_text: string; source: "user_confirmed" | string; updated_at: string | null; expires_at: string | null };
 
 type BrowserSpeechRecognition = {
@@ -50,6 +51,8 @@ type Result = {
   tool_name?: string | null;
   latency_ms?: number | null;
 };
+
+function toLocalDateTimeInput(date: Date) { const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000); return local.toISOString().slice(0, 16); }
 
 const scenarios = [
   { id: "mandi", label: "Mandi bhav", text: "सोनीपत मंडी में गेहूं का आज क्या भाव है?", icon: Wheat },
@@ -95,6 +98,10 @@ export default function Dashboard() {
   const [memoryMessage, setMemoryMessage] = useState<string | null>(null);
   const [householdTasks, setHouseholdTasks] = useState<HouseholdTask[] | null>(null);
   const [taskTitle, setTaskTitle] = useState("");
+  const [taskReminderAt, setTaskReminderAt] = useState("");
+  const [householdNotifications, setHouseholdNotifications] = useState<HouseholdNotification[] | null>(null);
+  const [notificationError, setNotificationError] = useState<string | null>(null);
+  const [notificationBusy, setNotificationBusy] = useState(false);
   const [taskBusy, setTaskBusy] = useState(false);
   const [taskError, setTaskError] = useState<string | null>(null);
   const [taskMessage, setTaskMessage] = useState<string | null>(null);
@@ -176,6 +183,29 @@ export default function Dashboard() {
       });
     return () => controller.abort();
   }, [authStatus.householdReady]);
+
+  useEffect(() => {
+    if (!authStatus.householdReady || capabilities.reminders_configured !== true) {
+      setHouseholdNotifications(null);
+      setNotificationError(null);
+      return;
+    }
+    const controller = new AbortController();
+    const loadNotifications = async () => {
+      try {
+        const response = await fetch("/backend/api/v1/household/notifications", { signal: controller.signal, cache: "no-store" });
+        const body = await response.json();
+        if (!response.ok || !Array.isArray(body.notifications)) throw new Error(body.detail || "In-app reminders are unavailable.");
+        setHouseholdNotifications(body.notifications);
+        setNotificationError(null);
+      } catch (cause) {
+        if (!controller.signal.aborted) setNotificationError(cause instanceof Error ? cause.message : "In-app reminders are unavailable.");
+      }
+    };
+    void loadNotifications();
+    const interval = window.setInterval(() => void loadNotifications(), 30_000);
+    return () => { controller.abort(); window.clearInterval(interval); };
+  }, [authStatus.householdReady, capabilities.reminders_configured]);
 
   const updateConsent = async (purpose: "memory" | "outbound_calls", granted: boolean) => {
     setConsentBusy(true);
@@ -282,20 +312,49 @@ export default function Dashboard() {
     setTaskMessage(null);
     try {
       const idempotencyKey = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function" ? crypto.randomUUID() : undefined;
+      const scheduledDate = taskReminderAt ? new Date(taskReminderAt) : null;
+      if (scheduledDate && (!Number.isFinite(scheduledDate.getTime()) || scheduledDate.getTime() < Date.now() + 60_000)) {
+        throw new Error("Choose a reminder at least one minute in the future.");
+      }
+      const timezoneName = Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Kolkata";
       const response = await fetch("/backend/api/v1/household/tasks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, ...(idempotencyKey ? { idempotency_key: idempotencyKey } : {}) }),
+        body: JSON.stringify({
+          title,
+          ...(idempotencyKey ? { idempotency_key: idempotencyKey } : {}),
+          ...(scheduledDate ? { scheduled_callback: scheduledDate.toISOString(), timezone_name: timezoneName } : {}),
+        }),
       });
       const body = await response.json();
       if (!response.ok) throw new Error(body.detail || "Task could not be saved.");
       setHouseholdTasks((current) => [body as HouseholdTask, ...(current || []).filter((item) => item.task_id !== body.task_id)]);
       setTaskTitle("");
-      setTaskMessage("Task saved. Automatic reminders and callback delivery are not enabled yet.");
+      setTaskReminderAt("");
+      setTaskMessage(scheduledDate ? "Task saved. An in-app reminder is scheduled; Saathi will not place a phone call." : "Task saved. No reminder was scheduled.");
     } catch (cause) {
       setTaskError(cause instanceof Error ? cause.message : "Task could not be saved.");
     } finally {
       setTaskBusy(false);
+    }
+  };
+
+  const markNotificationRead = async (notificationId: string) => {
+    setNotificationBusy(true);
+    setNotificationError(null);
+    try {
+      const response = await fetch("/backend/api/v1/household/notifications/read", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ notification_id: notificationId }),
+      });
+      const body = await response.json();
+      if (!response.ok || body.read !== true) throw new Error(body.detail || "Reminder could not be marked read.");
+      setHouseholdNotifications((current) => (current || []).map((item) => item.notification_id === notificationId ? { ...item, read_at: new Date().toISOString() } : item));
+    } catch (cause) {
+      setNotificationError(cause instanceof Error ? cause.message : "Reminder could not be marked read.");
+    } finally {
+      setNotificationBusy(false);
     }
   };
 
@@ -704,7 +763,7 @@ export default function Dashboard() {
 
         <section className="consent-card" aria-labelledby="tasks-title">
           <div className="context-title"><div><span className="panel-kicker">HOUSEHOLD TASKS</span><h3 id="tasks-title">Keep track of the next step.</h3></div><CheckCircle2 size={18} /></div>
-          <p className="consent-intro">Tasks are saved to your verified household and can be marked complete or cancelled. Scheduled reminders and automatic follow-up delivery are not enabled yet.</p>
+          <p className="consent-intro">Tasks are saved to your verified household. If in-app reminders are enabled in this deployment, you can schedule a reminder; this never places a phone call.</p>
           {!authStatus.phoneSuffix ? (
             <div className="consent-note"><ShieldCheck size={14} /> {authStatus.configured ? "Sign in with a verified phone to manage household tasks." : "Phone sign-in is not configured in this deployment."} {authStatus.configured && <Link href="/login">Sign in with phone</Link>}</div>
           ) : !authStatus.householdReady ? (
@@ -717,12 +776,35 @@ export default function Dashboard() {
                   <input id="household-task-title" value={taskTitle} onChange={(event) => setTaskTitle(event.target.value)} maxLength={300} placeholder="e.g. Call the agriculture office" required />
                   <button type="submit" className="run-button" disabled={taskBusy || !taskTitle.trim()}>{taskBusy ? "Saving…" : "Save task"}</button>
                 </div>
+                {capabilities.reminders_configured === true ? (
+                  <div className="task-reminder-field">
+                    <label htmlFor="household-task-reminder">Optional in-app reminder (your local time)</label>
+                    <input id="household-task-reminder" type="datetime-local" min={toLocalDateTimeInput(new Date(Date.now() + 60_000))} value={taskReminderAt} onChange={(event) => setTaskReminderAt(event.target.value)} disabled={taskBusy} />
+                    <small>No SMS, push notification, or phone call is sent.</small>
+                  </div>
+                ) : <div className="consent-note">Automatic reminders are disabled until database migration and feature-flag acceptance is complete.</div>}
               </form>
+              {capabilities.reminders_configured === true && (
+                <div className="in-app-reminders" aria-labelledby="in-app-reminders-title">
+                  <div className="context-title"><div><span className="panel-kicker">HOUSEHOLD NOTIFICATIONS</span><h4 id="in-app-reminders-title">In-app reminders</h4></div><span className="consent-state">{(householdNotifications || []).filter((item) => !item.read_at).length} unread</span></div>
+                  {householdNotifications === null ? <p className="consent-intro">Loading reminders…</p> : householdNotifications.length === 0 ? <p className="consent-note">No reminders yet. Schedule one when you save a task.</p> : (
+                    <ul className="notification-list">
+                      {householdNotifications.map((item) => (
+                        <li className={item.read_at ? "notification-row is-read" : "notification-row"} key={item.notification_id}>
+                          <div><strong>{item.title}</strong><p>{item.body}</p><small>{new Date(item.created_at).toLocaleString()}</small></div>
+                          {!item.read_at && <button type="button" className="voice-button" disabled={notificationBusy} onClick={() => void markNotificationRead(item.notification_id)}>Mark read</button>}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {notificationError && <p className="voice-error" role="alert" aria-live="assertive">{notificationError}</p>}
+                </div>
+              )}
               {householdTasks === null ? <p className="consent-intro">Loading saved tasks…</p> : householdTasks.length === 0 ? <div className="consent-note">No open tasks yet. Add a task above to keep it with this household.</div> : (
                 <ul className="task-list">
                   {householdTasks.map((task) => (
                     <li className="task-row" key={task.task_id}>
-                      <div><strong>{task.title}</strong>{task.missing_items.length > 0 && <p>Still needed: {task.missing_items.join(", ")}</p>}</div>
+                      <div><strong>{task.title}</strong>{task.missing_items.length > 0 && <p>Still needed: {task.missing_items.join(", ")}</p>}{task.scheduled_callback && <small>Reminder: {new Date(task.scheduled_callback).toLocaleString()}</small>}</div>
                       <div className="task-row-actions"><button type="button" className="voice-button" disabled={taskBusy} onClick={() => void updateHouseholdTaskStatus(task.task_id, "completed")}>Mark complete</button><button type="button" className="voice-button" disabled={taskBusy} onClick={() => void updateHouseholdTaskStatus(task.task_id, "cancelled")}>Cancel task</button></div>
                     </li>
                   ))}
