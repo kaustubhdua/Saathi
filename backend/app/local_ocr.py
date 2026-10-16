@@ -12,7 +12,7 @@ from typing import Any
 
 MAX_OCR_BYTES = 8 * 1024 * 1024
 ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp", "image/tiff"}
-_LANGUAGE_RE = re.compile(r"^[a-z]{3}(?:\\+[a-z]{3}){0,2}$")
+_LANGUAGE_RE = re.compile(r"^[a-z]{3}(?:\+[a-z]{3}){0,2}$")
 
 
 class LocalOCRError(RuntimeError):
@@ -21,13 +21,13 @@ class LocalOCRError(RuntimeError):
 
 def _has_image_signature(content: bytes, content_type: str) -> bool:
     if content_type == "image/png":
-        return content.startswith(b"\\x89PNG\\r\\n\\x1a\\n")
+        return content.startswith(b"\x89PNG\r\n\x1a\n")
     if content_type == "image/jpeg":
-        return content.startswith(b"\\xff\\xd8\\xff")
+        return content.startswith(b"\xff\xd8\xff")
     if content_type == "image/webp":
         return len(content) >= 12 and content[:4] == b"RIFF" and content[8:12] == b"WEBP"
     if content_type == "image/tiff":
-        return content.startswith((b"II*\\x00", b"MM\\x00*"))
+        return content.startswith((b"II*\x00", b"MM\x00*"))
     return False
 
 
@@ -73,7 +73,7 @@ def extract_local_ocr(
     confidences: list[float] = []
     try:
         stdout = result.stdout.decode("utf-8", errors="replace") if isinstance(result.stdout, bytes) else str(result.stdout or "")
-        rows = csv.DictReader(io.StringIO(stdout), delimiter="\\t")
+        rows = csv.DictReader(io.StringIO(stdout), delimiter="\t")
         for row in rows:
             word = (row.get("text") or "").strip()
             if not word:
