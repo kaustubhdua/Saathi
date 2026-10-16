@@ -293,13 +293,13 @@ test("forwards bounded local OCR multipart requests through the allowlisted prox
   form.append("language", "hin+eng");
   const response = await proxyRequest(req("api/v1/documents/ocr", { method: "POST", body: form }), ["api", "v1", "documents", "ocr"]);
   assert.equal(response.status, 200);
-  assert.match(upstreamUrl, /api\\/v1\\/documents\\/ocr$/);
+  assert.equal(upstreamUrl.endsWith("/api/v1/documents/ocr"), true);
   const headers = new Headers(upstreamInit.headers);
-  assert.match(headers.get("content-type"), /^multipart\\/form-data; boundary=/);
+  assert.equal(headers.get("content-type").startsWith("multipart/form-data; boundary="), true);
   assert.equal(headers.get("X-Saathi-API-Key"), "x".repeat(40));
   assert.equal(Buffer.isBuffer(upstreamInit.body), true);
-  assert.match(upstreamInit.body.toString("latin1"), /name="language"/);
-  assert.match(upstreamInit.body.toString("latin1"), /hin\\+eng/);
+  assert.equal(upstreamInit.body.toString("latin1").includes('name="language"'), true);
+  assert.equal(upstreamInit.body.toString("latin1").includes("hin+eng"), true);
 });
 
 test("rejects oversized local OCR bodies before contacting backend", async () => {
