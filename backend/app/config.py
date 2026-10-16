@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     supabase_publishable_key: str | None = None
     supabase_secret_key: str | None = None
     llm_provider: str = "ollama"
-    llm_model: str = "qwen2.5:3b"
+    llm_model: str = "qwen2.5:7b"
     ollama_base_url: str = "http://127.0.0.1:11434"
     ollama_timeout_seconds: float = 20.0
     gemini_api_key: str | None = None
