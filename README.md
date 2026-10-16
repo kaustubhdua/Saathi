@@ -31,6 +31,10 @@ The operator demo intentionally uses labelled simulated data when live credentia
 
 **Vercel + Supabase connection:** deploy the Next.js app with `frontend/` as the Vercel Root Directory, set `BACKEND_API_URL` to the public FastAPI origin, and configure the Supabase server-side secret on the API service. Follow `docs/VERCEL_SUPABASE_CONNECT.md`.
 
+## API-key-free local development
+
+The backend defaults to local Ollama tool selection (`qwen2.5:3b`) and does not need a hosted LLM key for that path. Install Ollama, run `ollama pull qwen2.5:3b`, set `LLM_PROVIDER=ollama` and `OLLAMA_BASE_URL=http://127.0.0.1:11434`, and keep `DEMO_MODE=true` for synthetic demo data. See [the open-source-first architecture and remaining offline gates](docs/OPEN_SOURCE_FIRST.md). Local LLM reasoning is optional; deterministic routing remains available if Ollama is offline. Backend uploaded-audio STT still requires a configured speech provider; browser voice is a separate UI fallback and is not guaranteed to be offline.
+
 ## Product direction
 
 1. Voice-first access through phone or browser.
