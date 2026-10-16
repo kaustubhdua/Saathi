@@ -17,7 +17,8 @@ The non-Supabase implementation is now consolidated into a production-shaped pro
 - executable Exotel AgentStream WebSocket endpoint with bounded-turn Sarvam phone speech adapter plus optional Sarvam Realtime STT/streaming TTS transport
 - telephony HMAC/idempotency contracts
 - rate limiting, correlation IDs, baseline API security headers and capability-aware readiness
-- current Sarvam Document AI adapter for Digitise/Extract jobs
+- current Sarvam Document AI adapter for Digitise/Extract jobs (optional hosted integration)
+- local Tesseract OCR endpoint for bounded Hindi/English image uploads, with confidence metadata and human-review flags
 - consent and human-escalation UI
 - automated backend/frontend CI and dependency audits
 
@@ -33,7 +34,7 @@ The operator demo intentionally uses labelled simulated data when live credentia
 
 ## API-key-free local development
 
-The backend defaults to local Ollama tool selection (`qwen2.5:7b`, Apache-2.0 model family variant) and does not need a hosted LLM key for that path. Install Ollama, run `ollama pull qwen2.5:7b`, set `LLM_PROVIDER=ollama` and `OLLAMA_BASE_URL=http://127.0.0.1:11434`, and set `DEMO_MODE=false` to activate local reasoning. The 7B model has a higher RAM/latency requirement than the previously listed 3B variant; confirm hardware suitability before deployment. `DEMO_MODE=true` deliberately remains deterministic and network-free for CI and synthetic demo data. See [the open-source-first architecture and remaining offline gates](docs/OPEN_SOURCE_FIRST.md). Local LLM reasoning is optional; deterministic routing remains available if Ollama is offline. Backend uploaded-audio STT still requires a configured speech provider; browser voice is a separate UI fallback and is not guaranteed to be offline.
+The backend defaults to local Ollama tool selection (`qwen2.5:7b`, Apache-2.0 model family variant) and does not need a hosted LLM key for that path. Install Ollama, run `ollama pull qwen2.5:7b`, set `LLM_PROVIDER=ollama` and `OLLAMA_BASE_URL=http://127.0.0.1:11434`, and set `DEMO_MODE=false` to activate local reasoning. The 7B model has a higher RAM/latency requirement than the previously listed 3B variant; confirm hardware suitability before deployment. `DEMO_MODE=true` deliberately remains deterministic and network-free for CI and synthetic demo data. See [the open-source-first architecture and remaining offline gates](docs/OPEN_SOURCE_FIRST.md). Local LLM reasoning is optional; deterministic routing remains available if Ollama is offline. The backend includes `POST /api/v1/documents/ocr` for keyless local image OCR when Tesseract is installed; it does not yet support PDFs or have a real-image Hindi accuracy benchmark. Backend uploaded-audio STT still requires a configured speech provider; browser voice is a separate UI fallback and is not guaranteed to be offline.
 
 ## Product direction
 
