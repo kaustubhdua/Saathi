@@ -4,7 +4,7 @@ Saathi's core must run without paid hosted AI credentials. This policy applies t
 
 ## Default runtime
 
-- **Reasoning/tool selection:** Ollama running locally with an installed open-weight model (default suggestion: `qwen2.5:3b`). Tool calls are proposals only; deterministic intent classification, capability policy, argument validation and source adapters remain authoritative.
+- **Reasoning/tool selection:** Ollama running locally with an installed open-weight model (default: `qwen2.5:7b` (Apache-2.0 variant; verify the exact model manifest/tag at adoption time)). Tool calls are proposals only; deterministic intent classification, capability policy, argument validation and source adapters remain authoritative.
 - **Speech in browser:** browser-native speech recognition/synthesis is a convenience fallback, not an offline guarantee. Browser speech engines may use network services depending on browser/OS. Label this clearly in UI.
 - **Speech fully offline:** use a locally installed Whisper/whisper.cpp or Vosk model for STT and a locally installed Piper voice for TTS after verifying Hindi/Hinglish quality and each model/voice license. Do not claim this is implemented until the adapters are wired and tested.
 - **OCR:** use a locally hosted Tesseract or PaddleOCR installation; keep OCR behind a provider interface, bound upload size and processing time, and label low-confidence extraction for human review.
@@ -14,11 +14,15 @@ Saathi's core must run without paid hosted AI credentials. This policy applies t
 - **Persistence and reminders:** a local/self-hosted PostgreSQL deployment can avoid a hosted database vendor API key, but durable consent, household isolation, idempotency, scheduling and delivery tests are still mandatory before enabling household workflows.
 - **Telephony:** outbound phone calls are explicitly optional and disabled by default. Browser audio/in-app reminders are the no-key baseline; carrier calling cannot honestly be promised without a compatible provider or user-owned telephony infrastructure.
 
+## Model license and hardware gate
+
+The default is `qwen2.5:7b`, selected instead of the Qwen2.5 3B variant because the upstream Qwen2.5 licensing matrix identifies the 7B variant as Apache-2.0 while the 3B variant has different terms. The model weights and any quantized Ollama artifact must be checked against the exact upstream model card/manifest before redistribution. Apache-2.0 applies to the model variant, not automatically to the whole application or any voice/model assets. The 7B model also requires materially more memory and inference time than a 3B model; measure on the intended host before release. Do not claim that model download, license review of every dependency, or Hindi/Haryanvi quality benchmarking has been completed merely because this default is configured.
+
 ## Local setup
 
 1. Install Ollama from its official distribution for your OS.
-2. Pull a model locally, for example `ollama pull qwen2.5:3b`.
-3. Set `LLM_PROVIDER=ollama`, `LLM_MODEL=qwen2.5:3b`, and `OLLAMA_BASE_URL=http://127.0.0.1:11434`. Set `DEMO_MODE=false` to activate the local model. `DEMO_MODE=true` deliberately bypasses model/network calls so the synthetic demo and CI remain deterministic.
+2. Pull a model locally, for example `ollama pull qwen2.5:7b`.
+3. Set `LLM_PROVIDER=ollama`, `LLM_MODEL=qwen2.5:7b`, and `OLLAMA_BASE_URL=http://127.0.0.1:11434`. Set `DEMO_MODE=false` to activate the local model. `DEMO_MODE=true` deliberately bypasses model/network calls so the synthetic demo and CI remain deterministic.
 4. Keep `DEMO_MODE=true` for synthetic data and demonstrations. For live public data, explicitly configure live mode and verify each source adapter; do not enable household features merely to make the demo work.
 5. If the local model is unavailable, Saathi must continue using deterministic routing where possible and clearly report optional reasoning unavailable. It must not silently fall back to a hosted model.
 
