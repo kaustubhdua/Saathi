@@ -9,10 +9,11 @@ const POLICIES = {
   "api/v1/household/consent": { method: "POST", kind: "consent", maxBytes: 4096, timeoutMs: 8_000 },
   "api/v1/household/tasks": { method: "POST", kind: "task", maxBytes: 8192, timeoutMs: 8_000 },
   "api/v1/household/tasks/status": { method: "POST", kind: "task_status", maxBytes: 4096, timeoutMs: 8_000 },
+  "api/v1/household/notifications/read": { method: "POST", kind: "notification_read", maxBytes: 4096, timeoutMs: 8_000 },
   "api/v1/household/memories": { method: "POST", kind: "memory", maxBytes: 8192, timeoutMs: 8_000 },
   "api/v1/household/memories/delete": { method: "POST", kind: "memory_delete", maxBytes: 4096, timeoutMs: 8_000 },
 };
-const READ_ROUTES = new Set(["health/ready", "health/live", "api/v1/household/consent", "api/v1/household/tasks", "api/v1/household/memories"]);
+const READ_ROUTES = new Set(["health/ready", "health/live", "api/v1/household/consent", "api/v1/household/tasks", "api/v1/household/notifications", "api/v1/household/memories"]);
 const buckets = new Map();
 const WINDOW_MS = 60_000;
 const REQUEST_LIMIT = 30;
@@ -163,7 +164,7 @@ export async function proxyRequest(request, segments = [], options = {}) {
   let body;
   if (!readOnly) {
     const contentType = request.headers.get("content-type") || "";
-    if (["json", "consent", "task", "task_status", "memory", "memory_delete"].includes(policy.kind) && !contentType.toLowerCase().startsWith("application/json")) return errorResponse(415, "application_json_required");
+    if (["json", "consent", "task", "task_status", "notification_read", "memory", "memory_delete"].includes(policy.kind) && !contentType.toLowerCase().startsWith("application/json")) return errorResponse(415, "application_json_required");
     if (policy.kind === "multipart" && (!contentType.toLowerCase().startsWith("multipart/form-data;") || !contentType.toLowerCase().includes("boundary="))) return errorResponse(415, "multipart_form_data_required");
     try { body = await readBoundedBody(request, policy.maxBytes, policy.timeoutMs); }
     catch (error) { return errorResponse(error?.status || 400, error?.message || "invalid_request_body"); }
