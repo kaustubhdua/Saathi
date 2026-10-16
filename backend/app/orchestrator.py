@@ -123,16 +123,16 @@ class Orchestrator:
             )
         self.escalation = EscalationPolicy()
         self.scheme = PMKisanSchemeTool()
-        if settings.llm_provider.casefold() == "ollama":
-            # Local reasoning can run in demo mode; demo mode still controls data adapters.
-            self.reasoning_router = OllamaToolRouter(
-                base_url=settings.ollama_base_url,
-                model=settings.llm_model,
-                timeout_seconds=settings.ollama_timeout_seconds,
-            )
-        elif settings.demo_mode:
+        if settings.demo_mode:
+            # Keep demo-mode CI and synthetic-data runs deterministic and network-free.
             self.reasoning_router = None
-        elif settings.llm_provider.casefold() == "gemini" and settings.gemini_api_key:
+        elif getattr(settings, "llm_provider", "gemini").casefold() == "ollama":
+            self.reasoning_router = OllamaToolRouter(
+                base_url=getattr(settings, "ollama_base_url", "http://127.0.0.1:11434"),
+                model=getattr(settings, "llm_model", "qwen2.5:3b"),
+                timeout_seconds=getattr(settings, "ollama_timeout_seconds", 20.0),
+            )
+        elif getattr(settings, "llm_provider", "gemini").casefold() == "gemini" and settings.gemini_api_key:
             self.reasoning_router = GeminiToolRouter(settings.gemini_api_key, settings.llm_model)
         else:
             # Unknown or unconfigured providers disable optional reasoning; deterministic
