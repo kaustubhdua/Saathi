@@ -284,8 +284,6 @@ class SupabaseTaskRepository(_SupabaseRepository):
         # Household reminders remain feature-gated until the proposed migration is applied.
         if task.scheduled_callback is not None and not get_settings().saathi_reminders_enabled:
             raise SupabaseRepositoryError("reminders_disabled")
-        payload = payload
-        }
         try:
             rows = await self._request("POST", "saathi_pending_tasks", payload)
         except SupabaseRepositoryError as exc:
