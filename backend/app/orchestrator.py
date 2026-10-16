@@ -123,14 +123,15 @@ class Orchestrator:
             )
         self.escalation = EscalationPolicy()
         self.scheme = PMKisanSchemeTool()
-        if settings.demo_mode:
-            self.reasoning_router = None
-        elif settings.llm_provider.casefold() == "ollama":
+        if settings.llm_provider.casefold() == "ollama":
+            # Local reasoning can run in demo mode; demo mode still controls data adapters.
             self.reasoning_router = OllamaToolRouter(
                 base_url=settings.ollama_base_url,
                 model=settings.llm_model,
                 timeout_seconds=settings.ollama_timeout_seconds,
             )
+        elif settings.demo_mode:
+            self.reasoning_router = None
         elif settings.llm_provider.casefold() == "gemini" and settings.gemini_api_key:
             self.reasoning_router = GeminiToolRouter(settings.gemini_api_key, settings.llm_model)
         else:
