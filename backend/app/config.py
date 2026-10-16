@@ -12,6 +12,10 @@ class Settings(BaseSettings):
     llm_model: str = "qwen2.5:7b"
     ollama_base_url: str = "http://127.0.0.1:11434"
     ollama_timeout_seconds: float = 20.0
+    local_ocr_enabled: bool = True
+    local_ocr_binary: str = "tesseract"
+    local_ocr_timeout_seconds: float = 15.0
+    local_ocr_max_bytes: int = 8388608
     gemini_api_key: str | None = None
     openai_api_key: str | None = None
     openai_model: str | None = None
