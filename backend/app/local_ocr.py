@@ -58,9 +58,6 @@ def extract_local_ocr(
             [executable, "stdin", "stdout", "-l", language, "--psm", "3", "tsv"],
             input=content,
             capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
             timeout=max(1.0, min(float(timeout_seconds), 20.0)),
             check=False,
         )
@@ -75,7 +72,8 @@ def extract_local_ocr(
     words: list[str] = []
     confidences: list[float] = []
     try:
-        rows = csv.DictReader(io.StringIO(result.stdout), delimiter="\\t")
+        stdout = result.stdout.decode("utf-8", errors="replace") if isinstance(result.stdout, bytes) else str(result.stdout or "")
+        rows = csv.DictReader(io.StringIO(stdout), delimiter="\\t")
         for row in rows:
             word = (row.get("text") or "").strip()
             if not word:
