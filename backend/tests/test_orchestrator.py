@@ -180,3 +180,62 @@ def test_model_weather_arguments_cannot_override_trusted_location_context():
 
     assert outcome.tool_name == "get_weather"
     assert captured == {"latitude": 28.61, "longitude": 77.21}
+
+
+def test_model_mandi_arguments_cannot_override_deterministic_crop_or_market():
+    from types import SimpleNamespace
+    from app.provenance import SourceRecord, ToolResult
+
+    captured = {}
+
+    class Router:
+        async def choose(self, _message):
+            return SimpleNamespace(
+                name="get_mandi_price",
+                arguments={"commodity": "Rice", "state": "Punjab", "district": "Amritsar"},
+                call_id="model-proposal",
+            )
+
+    class Mandi:
+        async def price(self, *, commodity, state, district=None):
+            captured.update(commodity=commodity, state=state, district=district)
+            return ToolResult(
+                ok=True,
+                data={"commodity": commodity, "modal_price": 2450, "arrival_date": "2026-10-16", "market": district},
+                source=SourceRecord(name="test-mandi", url="https://example.com/mandi", retrieved_at=None),
+            )
+
+    agent = Orchestrator()
+    agent.reasoning_router = Router()
+    agent.mandi = Mandi()
+    outcome = asyncio.run(agent.handle(
+        "Sonipat mandi me wheat ka bhav batao",
+        AgentContext(household_id=None, language="hinglish"),
+    ))
+
+    assert outcome.tool_name == "get_mandi_price"
+    assert captured == {"commodity": "Wheat", "state": "Haryana", "district": "Sonipat"}
+
+
+def test_model_cannot_invent_missing_mandi_entities():
+    from types import SimpleNamespace
+
+    class Router:
+        async def choose(self, _message):
+            return SimpleNamespace(
+                name="get_mandi_price",
+                arguments={"commodity": "Wheat", "state": "Haryana", "district": "Sonipat"},
+                call_id="model-proposal",
+            )
+
+    class Mandi:
+        async def price(self, **_kwargs):
+            raise AssertionError("incomplete user request must not query guessed model entities")
+
+    agent = Orchestrator()
+    agent.reasoning_router = Router()
+    agent.mandi = Mandi()
+    outcome = asyncio.run(agent.handle("mandi bhav batao", AgentContext(household_id=None, language="hi")))
+
+    assert outcome.result is None
+    assert "फसल" in outcome.reply
