@@ -111,3 +111,12 @@ Last verified: 2026-10-15 UTC (2026-10-16 IST)
 - Added `frontend/tests/ui-polish-contract.test.mjs` to guard keyboard focus, reduced motion, mobile control affordances and existing response/provenance states.
 - Verification status: tests and code changes are committed to a candidate branch but could not be executed in a local checkout in this environment. Exact-head GitHub Actions, keyboard/screen-reader/mobile visual E2E remain required before merge.
 - Not changed: auth/schema state, shared Supabase data, production deployment, API/provider credentials, or telephony configuration. The PR #68 household feature and all live provider proofs remain separate release gates.
+
+
+## Engineering sprint — OCR response contracts and escalation fail-closed tests (2026-10-17 UTC)
+
+- Candidate branch: `fix/ocr-escalation-contracts-2026-10-17`.
+- Document AI status/results now encode job IDs as one URL path segment and reject non-object JSON responses instead of passing malformed provider payloads downstream.
+- Escalation treats non-finite confidence as zero, which safely triggers low-confidence escalation; added safety-boundary escalation coverage.
+- Added a callback/reminder-policy regression for negative attempt counts. This is a pure policy check, not an active scheduler or provider dispatch.
+- Exact-head CI and review are required before merge. No Sarvam credentials were used, no real OCR document was uploaded, and no outbound call/reminder was dispatched.
