@@ -102,8 +102,8 @@ BEGIN
       AND t.cancelled_at IS NULL
       AND t.reminder_status = 'scheduled'
     ORDER BY t.scheduled_callback
-    FOR UPDATE SKIP LOCKED
     LIMIT p_batch_size
+    FOR UPDATE SKIP LOCKED
   LOOP
     tz := CASE
       WHEN EXISTS (SELECT 1 FROM pg_catalog.pg_timezone_names AS z WHERE z.name = task_row.timezone_name)
