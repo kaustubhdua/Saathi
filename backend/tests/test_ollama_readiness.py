@@ -73,3 +73,15 @@ def test_non_demo_readiness_is_not_ready_without_local_model(monkeypatch):
     assert body["status"] == "not_ready"
     assert "local_reasoning_model" in body["missing_requirements"]
     assert body["provider_contracts"]["reasoning"] is False
+
+
+def test_demo_mode_does_not_claim_llm_reasoning_is_active(monkeypatch):
+    monkeypatch.setattr(main.settings, "demo_mode", True)
+    monkeypatch.setattr(main.settings, "app_env", "development")
+    monkeypatch.setattr(main.settings, "llm_provider", "ollama")
+    monkeypatch.setattr(main.settings, "ollama_base_url", "http://127.0.0.1:11434")
+    monkeypatch.setattr(main.settings, "llm_model", "qwen2.5:7b")
+    monkeypatch.setattr(main, "_ollama_model_available", lambda *_args: (_ for _ in ()).throw(AssertionError("demo mode must not probe LLM")))
+    body = main.readiness()
+    assert body["status"] == "ready"
+    assert body["provider_contracts"]["reasoning"] is False
