@@ -6,7 +6,7 @@ This is an evidence ledger, not a declaration that release gates have passed. Au
 
 ## Current baseline
 
-- Current main after PRs #88/#89/#91/#92/#94: `03fa65a62137f4ed1b0a619a07389e4bc9cfaa0e`.
+- Current main after PRs #88/#89/#91/#92/#94: `27ccef4df93eee899b8107833cf353b20e96c4a9`.
 - PR #88 exact-head CI #1029 and PR #89 exact-head CI #1034 each passed all five jobs; this is code/build evidence, not live model/provider acceptance.
 - PR #59 adds production fail-closed behavior for unverified household identifiers; CI run #772 is pending at the time this document was authored.
 - PR #58 remains draft because other environments' migration histories are not verified.
@@ -130,3 +130,11 @@ The demo telephony fail-closed change is committed on `fix/dashboard-fail-closed
 - In non-demo Ollama mode, readiness now probes the local `/api/tags` endpoint with a 1.5-second timeout and reports `not_ready` if the exact configured model is not installed or reachable. Deterministic demo mode reports LLM reasoning as inactive instead of claiming a configured model is being used.
 - Local OCR readiness now requires both Tesseract and its Hindi/English language packs. Both API Dockerfiles run a real offline synthetic-image smoke: expected Hindi tokens `किसान`, `कार्ड` and English tokens `Kisan`, `Card` were recognized; mean reported word confidence was 94.69%; `network_used=false`.
 - This is installation/engine smoke evidence, **not** representative-document accuracy acceptance, a field benchmark, or proof that PDF OCR/document understanding is implemented. Real Ollama inference/tool selection remains unrun on target hardware.
+
+
+## LLM tool policy hardening — PRs #105–#107 (2026-10-17)
+
+- PR #105 merged: tests prove an Ollama-configured app never instantiates a hosted Gemini router even if a Gemini key is present; local Ollama connection failure falls back only to deterministic routing. Exact-head CI [#1071](https://github.com/kaustubhdua/Saathi/actions/runs/38973860736) passed all six jobs.
+- PR #106 merged: model-proposed human escalation is accepted only when deterministic intent classification identifies a human-support request. Exact-head CI [#1073](https://github.com/kaustubhdua/Saathi/actions/runs/38974031832) passed all six jobs.
+- PR #107 merged: model proposals cannot override trusted weather coordinates or invent crop/state/district for mandi queries. Deterministic entities are required before querying. Exact-head CI [#1078](https://github.com/kaustubhdua/Saathi/actions/runs/38974349601) passed all six jobs.
+- These checks constrain tool execution but do not prove model accuracy, real local-model latency, live weather/mandi source acceptance, or field quality. Those gates remain open.
