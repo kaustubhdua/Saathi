@@ -17,7 +17,13 @@ logger = getLogger(__name__)
 
 def _enabled() -> bool:
     household_enabled = os.getenv("SAATHI_HOUSEHOLD_FEATURES_ENABLED", "false").strip().casefold() in {"1", "true", "yes"}
-    return bool(get_settings().saathi_reminders_enabled and household_enabled)
+    settings = get_settings()
+    return bool(
+        settings.saathi_reminders_enabled
+        and household_enabled
+        and settings.supabase_url
+        and settings.supabase_secret_key
+    )
 
 
 async def run_once() -> int:
