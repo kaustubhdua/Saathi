@@ -192,11 +192,12 @@ class Orchestrator:
                         tool_name=self._tool_name("human", "request_human"),
                     )
                 if selected and selected.name == "get_weather" and intent == "farming" and context.location is not None:
-                    args = selected.arguments
-                    latitude = float(args.get("latitude", context.location.latitude))
-                    longitude = float(args.get("longitude", context.location.longitude))
+                    # Model arguments must never override the user's trusted location context.
+                    # The model selects a capability; the server supplies factual coordinates.
+                    latitude = float(context.location.latitude)
+                    longitude = float(context.location.longitude)
                     if not -90 <= latitude <= 90 or not -180 <= longitude <= 180:
-                        raise ValueError("reasoning_provider_invalid_location")
+                        raise ValueError("context_location_invalid")
                     result = await self.weather.forecast(latitude=latitude, longitude=longitude)
                     if result.ok:
                         data = result.data
