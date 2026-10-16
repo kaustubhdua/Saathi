@@ -10,6 +10,13 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-hin tesseract-ocr-eng ffmpeg espeak-ng \
     && rm -rf /var/lib/apt/lists/*
 
+# Verify that the image actually contains the offline audio tools and Hindi TTS voice.
+RUN command -v ffmpeg >/dev/null && command -v espeak-ng >/dev/null \
+    && tesseract --list-langs 2>/dev/null | grep -Fxq hin \
+    && espeak-ng --stdout -v hi "नमस्ते किसान" > /tmp/saathi-hi.wav \
+    && test "$(head -c 4 /tmp/saathi-hi.wav)" = "RIFF" \
+    && rm /tmp/saathi-hi.wav
+
 COPY backend/requirements.txt /tmp/requirements.txt
 RUN pip install --upgrade pip && pip install -r /tmp/requirements.txt
 
