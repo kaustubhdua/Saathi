@@ -1,0 +1,162 @@
+-- PROPOSED ONLY. Apply only after PR #58 migration-history reconciliation and
+-- isolated database acceptance. This delivers in-app notifications only; it does
+-- not make phone calls or use browser-push credentials.
+ALTER TABLE public.saathi_pending_tasks
+  ADD COLUMN IF NOT EXISTS reminder_status text NOT NULL DEFAULT 'none'
+    CHECK (reminder_status IN ('none', 'scheduled', 'delivered', 'cancelled', 'failed')),
+  ADD COLUMN IF NOT EXISTS reminder_delivered_at timestamptz NULL,
+  ADD COLUMN IF NOT EXISTS reminder_last_error text NULL
+    CHECK (reminder_last_error IS NULL OR length(reminder_last_error) <= 120);
+
+UPDATE public.saathi_pending_tasks
+SET reminder_status = 'scheduled'
+WHERE scheduled_callback IS NOT NULL
+  AND status IN ('pending', 'scheduled')
+  AND reminder_status = 'none';
+
+CREATE INDEX IF NOT EXISTS saathi_pending_tasks_reminder_due_idx
+  ON public.saathi_pending_tasks (scheduled_callback)
+  WHERE reminder_status = 'scheduled' AND status IN ('pending', 'scheduled') AND cancelled_at IS NULL;
+
+CREATE TABLE IF NOT EXISTS public.saathi_in_app_notifications (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  household_id uuid NOT NULL REFERENCES public.saathi_households(id) ON DELETE CASCADE,
+  task_id uuid NOT NULL UNIQUE REFERENCES public.saathi_pending_tasks(id) ON DELETE CASCADE,
+  title text NOT NULL CHECK (length(title) BETWEEN 1 AND 300),
+  body text NOT NULL CHECK (length(body) BETWEEN 1 AND 1000),
+  created_at timestamptz NOT NULL DEFAULT now(),
+  read_at timestamptz NULL
+);
+
+CREATE INDEX IF NOT EXISTS saathi_in_app_notifications_household_created_idx
+  ON public.saathi_in_app_notifications (household_id, created_at DESC);
+
+ALTER TABLE public.saathi_in_app_notifications ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE public.saathi_in_app_notifications FROM PUBLIC, anon, authenticated;
+GRANT ALL ON TABLE public.saathi_in_app_notifications TO service_role;
+CREATE POLICY saathi_in_app_notifications_deny_client_access
+  ON public.saathi_in_app_notifications FOR ALL TO anon, authenticated USING (false) WITH CHECK (false);
+
+CREATE OR REPLACE FUNCTION public.saathi_deliver_due_reminders(
+  p_batch_size integer DEFAULT 25,
+  p_now timestamptz DEFAULT now()
+)
+RETURNS TABLE (notification_id uuid, task_id uuid, household_id uuid)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = pg_catalog
+AS $saathi$
+DECLARE
+  task_row record;
+  tz text;
+  local_now timestamp without time zone;
+  next_allowed timestamptz;
+  created_notification_id uuid;
+  effective_now timestamptz := COALESCE(p_now, now());
+BEGIN
+  IF p_batch_size IS NULL OR p_batch_size < 1 OR p_batch_size > 100 THEN
+    RAISE EXCEPTION 'reminder_batch_size_out_of_range' USING ERRCODE = '22023';
+  END IF;
+
+  -- Quiet hours are 21:00–08:00 in the task's validated IANA timezone.
+  -- Deferral and delivery run in the same transaction; row locks make cancel
+  -- races deterministic and SKIP LOCKED permits multiple worker instances.
+  FOR task_row IN
+    SELECT t.id, t.timezone_name
+    FROM public.saathi_pending_tasks AS t
+    WHERE t.scheduled_callback <= effective_now
+      AND t.status IN ('pending', 'scheduled')
+      AND t.cancelled_at IS NULL
+      AND t.reminder_status = 'scheduled'
+    ORDER BY t.scheduled_callback
+    LIMIT p_batch_size
+    FOR UPDATE SKIP LOCKED
+  LOOP
+    tz := CASE
+      WHEN EXISTS (SELECT 1 FROM pg_catalog.pg_timezone_names AS z WHERE z.name = task_row.timezone_name)
+      THEN task_row.timezone_name
+      ELSE 'Asia/Kolkata'
+    END;
+    local_now := effective_now AT TIME ZONE tz;
+    IF local_now::time >= TIME '21:00' OR local_now::time < TIME '08:00' THEN
+      next_allowed := (
+        (local_now::date + CASE WHEN local_now::time >= TIME '21:00' THEN 1 ELSE 0 END)
+        + TIME '08:00'
+      ) AT TIME ZONE tz;
+      UPDATE public.saathi_pending_tasks AS t
+      SET scheduled_callback = next_allowed,
+          timezone_name = tz,
+          updated_at = effective_now
+      WHERE t.id = task_row.id
+        AND t.reminder_status = 'scheduled'
+        AND t.status IN ('pending', 'scheduled')
+        AND t.cancelled_at IS NULL;
+    END IF;
+  END LOOP;
+
+  FOR task_row IN
+    SELECT t.id, t.household_id, t.title, t.timezone_name
+    FROM public.saathi_pending_tasks AS t
+    WHERE t.scheduled_callback <= effective_now
+      AND t.status IN ('pending', 'scheduled')
+      AND t.cancelled_at IS NULL
+      AND t.reminder_status = 'scheduled'
+    ORDER BY t.scheduled_callback
+    LIMIT p_batch_size
+    FOR UPDATE SKIP LOCKED
+  LOOP
+    tz := CASE
+      WHEN EXISTS (SELECT 1 FROM pg_catalog.pg_timezone_names AS z WHERE z.name = task_row.timezone_name)
+      THEN task_row.timezone_name
+      ELSE 'Asia/Kolkata'
+    END;
+    local_now := effective_now AT TIME ZONE tz;
+    IF local_now::time >= TIME '21:00' OR local_now::time < TIME '08:00' THEN
+      CONTINUE;
+    END IF;
+
+    created_notification_id := NULL;
+    INSERT INTO public.saathi_in_app_notifications (household_id, task_id, title, body, created_at)
+    VALUES (
+      task_row.household_id,
+      task_row.id,
+      'Saathi reminder: ' || left(task_row.title, 250),
+      'You asked Saathi to remind you about: ' || left(task_row.title, 250),
+      effective_now
+    )
+    ON CONFLICT (task_id) DO NOTHING
+    RETURNING id INTO created_notification_id;
+
+    IF created_notification_id IS NULL THEN
+      SELECT n.id INTO created_notification_id
+      FROM public.saathi_in_app_notifications AS n
+      WHERE n.task_id = task_row.id;
+    END IF;
+
+    UPDATE public.saathi_pending_tasks AS t
+    SET reminder_status = 'delivered',
+        reminder_delivered_at = COALESCE(t.reminder_delivered_at, effective_now),
+        reminder_last_error = NULL,
+        updated_at = effective_now
+    WHERE t.id = task_row.id
+      AND t.reminder_status = 'scheduled'
+      AND t.status IN ('pending', 'scheduled')
+      AND t.cancelled_at IS NULL;
+
+    notification_id := created_notification_id;
+    task_id := task_row.id;
+    household_id := task_row.household_id;
+    RETURN NEXT;
+  END LOOP;
+END;
+$saathi$;
+
+REVOKE ALL ON FUNCTION public.saathi_deliver_due_reminders(integer, timestamptz)
+  FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.saathi_deliver_due_reminders(integer, timestamptz)
+  TO service_role;
+
+COMMENT ON TABLE public.saathi_in_app_notifications IS
+  'Persistent in-app reminders only. No phone calls or push notifications are sent by this queue.';
+COMMENT ON FUNCTION public.saathi_deliver_due_reminders(integer, timestamptz) IS
+  'Idempotent, restart-safe in-app reminder delivery. Defers quiet hours (21:00–08:00 local), serializes task cancellation via row locks, and uses unique task_id to prevent duplicate notifications.';
