@@ -3,7 +3,7 @@ from fastapi.testclient import TestClient
 from app.main import app
 
 
-PNG = b"\\x89PNG\\r\\n\\x1a\\n" + b"fixture"
+PNG = b"\x89PNG\r\n\x1a\n" + b"fixture"
 
 
 def test_local_ocr_endpoint_uses_local_provider_and_returns_review_metadata(monkeypatch):
