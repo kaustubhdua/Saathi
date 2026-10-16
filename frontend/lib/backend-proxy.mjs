@@ -137,8 +137,8 @@ export async function proxyRequest(request, segments = [], options = {}) {
   const rateKey = `${method}:${path}:${clientIp(request, env)}`;
   // The containerized local demo runs a production Next.js build but is not
   // a production deployment. Permit the bounded per-process limiter only when
-  // both explicit local-development flags are set. Production remains fail-closed
-  // on the shared limiter regardless of NODE_ENV or a mistakenly set flag.
+  // both explicit local-development flags are set. Real deployments must keep
+  // APP_ENV=production; that setting never permits the local limiter.
   const explicitLocalDevelopment =
     env.APP_ENV?.trim().toLowerCase() === "development" &&
     env.SAATHI_LOCAL_RATE_LIMITER_ENABLED === "true";
