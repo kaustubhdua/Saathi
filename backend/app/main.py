@@ -230,6 +230,8 @@ def readiness() -> dict[str, object]:
     auth_required = not (settings.demo_mode and settings.app_env.lower() != "production")
     api_auth_configured = bool(settings.api_auth_token)
     missing_requirements = ["api_operator_auth"] if auth_required and not api_auth_configured else []
+    if not settings.demo_mode and reasoning_provider == "ollama" and not reasoning:
+        missing_requirements.append("local_reasoning_model")
     return {
         "status": "not_ready" if missing_requirements else "ready",
         "missing_requirements": missing_requirements,
