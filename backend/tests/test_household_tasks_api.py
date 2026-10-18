@@ -316,3 +316,51 @@ def test_notification_read_rejects_malformed_notification_id(monkeypatch):
         json={"notification_id": "not-a-uuid"},
     )
     assert response.status_code == 422
+
+
+def test_task_cancellation_marks_scheduled_reminder_cancelled_when_enabled(monkeypatch):
+    configure_production(monkeypatch)
+    monkeypatch.setattr("app.main.settings.saathi_reminders_enabled", True)
+    captured = {}
+
+    async def set_status(self, *, household_id, task_id, status):
+        captured.update(household_id=household_id, task_id=task_id, status=status)
+        return Task(
+            task_id=task_id,
+            household_id=household_id,
+            title="Submit form",
+            status=status,
+        )
+
+    monkeypatch.setattr("app.main.SupabaseTaskRepository.set_status", set_status)
+    response = TestClient(app).post(
+        "/api/v1/household/tasks/status",
+        headers=headers(),
+        json={"task_id": TASK_ID, "status": "cancelled"},
+    )
+    assert response.status_code == 200
+    assert response.json()["status"] == "cancelled"
+    assert captured == {
+        "household_id": HOUSEHOLD_ID,
+        "task_id": TASK_ID,
+        "status": TaskStatus.CANCELLED,
+    }
+
+
+def test_notification_read_returns_service_error_without_leaking_database_details(monkeypatch):
+    configure_production(monkeypatch)
+    monkeypatch.setattr("app.main.settings.saathi_reminders_enabled", True)
+
+    async def mark_read(self, *, household_id, notification_id):
+        raise SupabaseRepositoryError("supabase_persistence_http_503_secret-value")
+
+    from app.supabase_repositories import SupabaseRepositoryError
+    monkeypatch.setattr("app.main.SupabaseReminderRepository.mark_read", mark_read)
+    response = TestClient(app).post(
+        "/api/v1/household/notifications/read",
+        headers=headers(),
+        json={"notification_id": "55555555-5555-4555-8555-555555555555"},
+    )
+    assert response.status_code == 503
+    assert response.json()["detail"] == "household_notification_update_failed"
+    assert "secret-value" not in response.text
