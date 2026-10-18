@@ -124,7 +124,7 @@ BEGIN
       'You asked Saathi to remind you about: ' || left(task_row.title, 250),
       effective_now
     )
-    ON CONFLICT (task_id) DO NOTHING
+    ON CONFLICT ON CONSTRAINT saathi_in_app_notifications_task_id_key DO NOTHING
     RETURNING id INTO created_notification_id;
 
     IF created_notification_id IS NULL THEN
