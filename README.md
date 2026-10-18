@@ -95,3 +95,5 @@ See:
 - `docs/REAL_DATA.md`
 - `docs/EVALUATION.md`
 - `docs/JAI_SUBMISSION_CHECKLIST.md`
+The in-app reminder worker is opt-in and remains disabled until the proposed migration is approved and applied to an isolated database. It creates dashboard notifications only; it does not send SMS, browser push, or phone calls. See `docs/REMINDERS.md` for feature gates and acceptance evidence.
+

@@ -1,10 +1,14 @@
 import asyncio
 from base64 import b64encode
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from hmac import compare_digest
 from ipaddress import ip_address
 import os
 import shutil
+import subprocess
+
+import httpx
 from urllib.parse import urlsplit
 from time import perf_counter
 from uuid import UUID
@@ -13,7 +17,7 @@ from fastapi import FastAPI, File, Form, Header, HTTPException, Request, UploadF
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import get_settings
-from .schemas import AgentRequest, CallRequest, ConsentUpdateRequest, ConversationRequest, ConversationResponse, HouseholdMemoryDeleteRequest, HouseholdMemoryWriteRequest, HouseholdTaskCreateRequest, HouseholdTaskStatusRequest, LocationContext, VoiceTurnResponse
+from .schemas import AgentRequest, CallRequest, ConsentUpdateRequest, ConversationRequest, ConversationResponse, HouseholdMemoryDeleteRequest, HouseholdMemoryWriteRequest, HouseholdNotificationReadRequest, HouseholdTaskCreateRequest, HouseholdTaskStatusRequest, LocationContext, VoiceTurnResponse
 from .orchestrator import AgentContext, Orchestrator
 from .rate_limit import InMemoryRateLimiter
 from .telephony import HmacWebhookVerifier
@@ -25,7 +29,7 @@ from .voice_bridge import run_exotel_realtime_session, run_exotel_session
 from .webhook_events import InMemoryWebhookEventStore, derive_event_id, record_supabase_webhook_event
 from .supabase_store import record_conversation_metadata
 from .domain import Consent, ConsentType, Task, TaskStatus
-from .supabase_repositories import SupabaseCallRepository, SupabaseConsentRepository, SupabaseMemoryRepository, SupabaseRepositoryError, SupabaseTaskRepository
+from .supabase_repositories import SupabaseCallRepository, SupabaseConsentRepository, SupabaseMemoryRepository, SupabaseReminderRepository, SupabaseRepositoryError, SupabaseTaskRepository
 from .scheme_catalog import get_scheme, list_schemes
 from .local_ocr import LocalOCRError, extract_local_ocr
 
@@ -128,6 +132,52 @@ def metrics() -> dict[str, object]:
     return metrics_snapshot()
 
 
+def _local_ocr_available(binary: str) -> bool:
+    """Report OCR only when Tesseract and both configured language packs are present."""
+    executable = shutil.which(binary)
+    if not executable:
+        return False
+    try:
+        result = subprocess.run(
+            [executable, "--list-langs"],
+            capture_output=True,
+            text=True,
+            timeout=1.5,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+    if result.returncode != 0:
+        return False
+    languages = {line.strip() for line in (result.stdout or "").splitlines()[1:] if line.strip()}
+    return {"hin", "eng"} <= languages
+
+
+def _ollama_model_available(base_url: str, model: str) -> bool:
+    """Bounded readiness probe: true only when the configured model is actually pulled."""
+    try:
+        normalized_base = (base_url or "").strip().rstrip("/")
+        parsed = urlsplit(normalized_base)
+        if (
+            parsed.scheme not in {"http", "https"}
+            or not parsed.hostname
+            or parsed.username is not None
+            or parsed.password is not None
+            or parsed.path not in {"", "/"}
+            or parsed.query
+            or parsed.fragment
+        ):
+            return False
+        with httpx.Client(timeout=1.5, trust_env=False) as client:
+            response = client.get(f"{normalized_base}/api/tags")
+            response.raise_for_status()
+            payload = response.json()
+        models = payload.get("models", []) if isinstance(payload, dict) else []
+        return any(isinstance(item, dict) and item.get("name") == model for item in models)
+    except (httpx.HTTPError, ValueError, TypeError, AttributeError):
+        return False
+
+
 @app.get("/health/ready")
 def readiness() -> dict[str, object]:
     telephony = bool(
@@ -141,9 +191,14 @@ def readiness() -> dict[str, object]:
         and getattr(settings, "telephony_callback_signature_verified", False)
     )
     reasoning_provider = str(getattr(settings, "llm_provider", "gemini")).casefold()
-    if reasoning_provider == "ollama":
-        # This reports local configuration, not proof that the model is downloaded or reachable.
-        reasoning = bool(getattr(settings, "ollama_base_url", None) and getattr(settings, "llm_model", None))
+    if settings.demo_mode:
+        # Deterministic demo routing does not invoke any LLM, even if a key/model is configured.
+        reasoning = False
+    elif reasoning_provider == "ollama":
+        reasoning = _ollama_model_available(
+            str(getattr(settings, "ollama_base_url", "")),
+            str(getattr(settings, "llm_model", "")),
+        )
     elif reasoning_provider == "gemini":
         reasoning = bool(getattr(settings, "gemini_api_key", None))
     elif reasoning_provider == "openai":
@@ -151,6 +206,8 @@ def readiness() -> dict[str, object]:
     else:
         reasoning = False
     mandi = bool(settings.mandi_api_key and settings.mandi_resource_id)
+    household_features_enabled = os.getenv("SAATHI_HOUSEHOLD_FEATURES_ENABLED", "false").strip().lower() in {"1", "true", "yes"}
+    reminders_configured = bool(getattr(settings, "saathi_reminders_enabled", False) and household_features_enabled and getattr(settings, "supabase_url", None) and getattr(settings, "supabase_secret_key", None))
     speech_provider = str(getattr(settings, "speech_provider", "local")).casefold()
     if speech_provider == "local":
         offline_stt = bool(settings.vosk_model_path and os.path.isdir(settings.vosk_model_path) and shutil.which(settings.ffmpeg_binary))
@@ -190,7 +247,8 @@ def readiness() -> dict[str, object]:
             "offline_tts": offline_tts,
             "weather": True,
             "documents": bool(settings.sarvam_api_key),
-            "local_ocr": bool(settings.local_ocr_enabled and shutil.which(settings.local_ocr_binary)),
+            "local_ocr": bool(settings.local_ocr_enabled and _local_ocr_available(settings.local_ocr_binary)),
+            "reminders_configured": reminders_configured,
             "api_operator_auth": api_auth_configured,
             "telephony_stream_auth": bool(settings.telephony_stream_token),
         },
@@ -655,6 +713,24 @@ async def create_household_task(
         raise HTTPException(status_code=422, detail="invalid_task_missing_items")
     # Scope idempotency to the verified household so a client cannot probe another
     # household's task by reusing its idempotency key.
+    scheduled_callback = None
+    timezone_name = payload.timezone_name
+    if payload.scheduled_callback is not None:
+        if not settings.saathi_reminders_enabled:
+            raise HTTPException(status_code=503, detail="reminders_disabled")
+        try:
+            task_timezone = ZoneInfo(timezone_name)
+        except (ZoneInfoNotFoundError, ValueError) as exc:
+            raise HTTPException(status_code=422, detail="invalid_task_timezone") from exc
+        scheduled_callback = payload.scheduled_callback
+        if scheduled_callback.tzinfo is None:
+            scheduled_callback = scheduled_callback.replace(tzinfo=task_timezone)
+        scheduled_callback = scheduled_callback.astimezone(timezone.utc)
+        now = datetime.now(timezone.utc)
+        if scheduled_callback < now + timedelta(minutes=1):
+            raise HTTPException(status_code=422, detail="reminder_must_be_at_least_one_minute_in_future")
+        if scheduled_callback > now + timedelta(days=365):
+            raise HTTPException(status_code=422, detail="reminder_too_far_in_future")
     idempotency_key = f"{household_id}:{payload.idempotency_key}"
     task = Task(
         household_id=household_id,
@@ -662,12 +738,62 @@ async def create_household_task(
         status=TaskStatus.PENDING,
         missing_items=missing_items,
         idempotency_key=idempotency_key,
+        scheduled_callback=scheduled_callback,
+        timezone_name=timezone_name,
     )
     try:
         saved = await SupabaseTaskRepository().create(task)
     except (SupabaseRepositoryError, ValueError) as exc:
         raise HTTPException(status_code=503, detail="household_task_save_failed") from exc
     return _task_response(saved)
+
+
+@app.get("/api/v1/household/notifications")
+async def list_household_notifications(
+    x_saathi_api_key: str | None = Header(default=None),
+    x_saathi_verified_household: str | None = Header(default=None),
+    x_saathi_verified_identity: str | None = Header(default=None),
+) -> dict[str, object]:
+    _authorize_api_request(x_saathi_api_key)
+    _require_household_features_enabled()
+    if not settings.saathi_reminders_enabled:
+        raise HTTPException(status_code=503, detail="reminders_disabled")
+    household_id = _authorize_household_context(None, x_saathi_verified_household, x_saathi_verified_identity)
+    if not household_id:
+        raise HTTPException(status_code=401, detail="verified_phone_identity_required")
+    try:
+        notifications = await SupabaseReminderRepository().list_for_household(household_id=household_id)
+    except (SupabaseRepositoryError, ValueError) as exc:
+        raise HTTPException(status_code=503, detail="household_notifications_unavailable") from exc
+    return {"notifications": notifications}
+
+
+@app.post("/api/v1/household/notifications/read")
+async def mark_household_notification_read(
+    payload: HouseholdNotificationReadRequest,
+    x_saathi_api_key: str | None = Header(default=None),
+    x_saathi_verified_household: str | None = Header(default=None),
+    x_saathi_verified_identity: str | None = Header(default=None),
+) -> dict[str, object]:
+    _authorize_api_request(x_saathi_api_key)
+    _require_household_features_enabled()
+    if not settings.saathi_reminders_enabled:
+        raise HTTPException(status_code=503, detail="reminders_disabled")
+    household_id = _authorize_household_context(None, x_saathi_verified_household, x_saathi_verified_identity)
+    if not household_id:
+        raise HTTPException(status_code=401, detail="verified_phone_identity_required")
+    try:
+        updated = await SupabaseReminderRepository().mark_read(
+            household_id=household_id,
+            notification_id=payload.notification_id,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail="invalid_notification_id") from exc
+    except SupabaseRepositoryError as exc:
+        raise HTTPException(status_code=503, detail="household_notification_update_failed") from exc
+    if not updated:
+        raise HTTPException(status_code=404, detail="household_notification_not_found")
+    return {"notification_id": payload.notification_id, "read": True}
 
 
 @app.post("/api/v1/household/tasks/status")
@@ -704,6 +830,7 @@ def _task_response(task: Task) -> dict[str, object]:
         "status": task.status.value,
         "missing_items": task.missing_items,
         "scheduled_callback": task.scheduled_callback.isoformat() if task.scheduled_callback else None,
+        "timezone_name": task.timezone_name,
     }
 
 

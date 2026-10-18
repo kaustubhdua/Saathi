@@ -29,3 +29,4 @@ class Task(BaseModel):
     status: TaskStatus = TaskStatus.PENDING
     missing_items: list[str] = Field(default_factory=list)
     scheduled_callback: datetime | None = None
+    timezone_name: str = "Asia/Kolkata"

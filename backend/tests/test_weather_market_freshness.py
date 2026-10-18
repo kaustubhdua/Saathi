@@ -1,4 +1,5 @@
 import asyncio
+from datetime import datetime, timedelta, timezone
 
 from app.http_tools import DataGovMandiTool, OpenMeteoWeatherTool
 
@@ -52,11 +53,11 @@ def test_mandi_prefers_newest_arrival_date_not_response_order(monkeypatch):
         "records": [
             {
                 "commodity": "Wheat", "state": "Haryana", "district": "Sonipat",
-                "market": "Sonipat", "arrival_date": "09/10/2026", "Modal_Price": "2400",
+                "market": "Sonipat", "arrival_date": (datetime.now(timezone.utc).date() - timedelta(days=1)).strftime("%d/%m/%Y"), "Modal_Price": "2400",
             },
             {
                 "commodity": "Wheat", "state": "Haryana", "district": "Sonipat",
-                "market": "Sonipat", "arrival_date": "10/10/2026", "Modal_Price": "2450",
+                "market": "Sonipat", "arrival_date": datetime.now(timezone.utc).date().strftime("%d/%m/%Y"), "Modal_Price": "2450",
             },
         ]
     }
@@ -79,7 +80,7 @@ def test_mandi_prefers_newest_arrival_date_not_response_order(monkeypatch):
     )
     assert result.ok
     assert result.data["modal_price"] == 2450
-    assert result.data["arrival_date"] == "10/10/2026"
+    assert result.data["arrival_date"] == datetime.now(timezone.utc).date().strftime("%d/%m/%Y")
 
 
 def test_mandi_equal_match_and_date_stays_ambiguous(monkeypatch):

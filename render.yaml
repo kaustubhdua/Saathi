@@ -50,3 +50,25 @@ services:
         sync: false
       - key: SARVAM_REALTIME_STT_ENABLED
         value: "false"
+
+  # Dedicated process for persistent in-app reminders. Keep both flags off until
+  # migration-history reconciliation and isolated acceptance are approved.
+  - type: worker
+    name: saathi-reminder-worker
+    runtime: docker
+    dockerCommand: python -m app.reminder_worker
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SECRET_KEY
+        sync: false
+      - key: SAATHI_HOUSEHOLD_FEATURES_ENABLED
+        value: "false"
+      - key: SAATHI_REMINDERS_ENABLED
+        value: "false"
+      - key: REMINDER_BATCH_SIZE
+        value: "25"
+      - key: REMINDER_WORKER_INTERVAL_SECONDS
+        value: "30"
