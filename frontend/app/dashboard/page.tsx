@@ -99,6 +99,7 @@ export default function Dashboard() {
   const [householdTasks, setHouseholdTasks] = useState<HouseholdTask[] | null>(null);
   const [taskTitle, setTaskTitle] = useState("");
   const [taskReminderAt, setTaskReminderAt] = useState("");
+  const [taskReminderMin, setTaskReminderMin] = useState("");
   const [householdNotifications, setHouseholdNotifications] = useState<HouseholdNotification[] | null>(null);
   const [notificationError, setNotificationError] = useState<string | null>(null);
   const [notificationBusy, setNotificationBusy] = useState(false);
@@ -185,11 +186,14 @@ export default function Dashboard() {
   }, [authStatus.householdReady]);
 
   useEffect(() => {
-    if (!authStatus.householdReady || capabilities.reminders_configured !== true) {
-      setHouseholdNotifications(null);
-      setNotificationError(null);
-      return;
-    }
+    const updateMinimum = () => setTaskReminderMin(toLocalDateTimeInput(new Date(Date.now() + 60_000)));
+    updateMinimum();
+    const clock = window.setInterval(updateMinimum, 30_000);
+    return () => window.clearInterval(clock);
+  }, []);
+
+  useEffect(() => {
+    if (!authStatus.householdReady || capabilities.reminders_configured !== true) return;
     const controller = new AbortController();
     const loadNotifications = async () => {
       try {
@@ -779,7 +783,7 @@ export default function Dashboard() {
                 {capabilities.reminders_configured === true ? (
                   <div className="task-reminder-field">
                     <label htmlFor="household-task-reminder">Optional in-app reminder (your local time)</label>
-                    <input id="household-task-reminder" type="datetime-local" min={toLocalDateTimeInput(new Date(Date.now() + 60_000))} value={taskReminderAt} onChange={(event) => setTaskReminderAt(event.target.value)} disabled={taskBusy} />
+                    <input id="household-task-reminder" type="datetime-local" min={taskReminderMin} value={taskReminderAt} onChange={(event) => setTaskReminderAt(event.target.value)} disabled={taskBusy} />
                     <small>No SMS, push notification, or phone call is sent.</small>
                   </div>
                 ) : <div className="consent-note">Automatic reminders are disabled until database migration and feature-flag acceptance is complete.</div>}
