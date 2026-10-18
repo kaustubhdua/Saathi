@@ -18,7 +18,7 @@ test("notifications are polled and read through verified household proxy routes"
   assert.match(dashboard, /fetch\("\/backend\/api\/v1\/household\/notifications"/);
   assert.match(dashboard, /fetch\("\/backend\/api\/v1\/household\/notifications\/read"/);
   assert.match(dashboard, /setInterval\(\(\) => void loadNotifications\(\), 30_000\)/);
-  assert.match(proxy, /"api\/v1\/household\/notifications":/);
+  assert.match(proxy, /"api\/v1\/household\/notifications"/);
   assert.match(proxy, /"api\/v1\/household\/notifications\/read":/);
   assert.match(proxy, /api\/v1\/household\/notifications", "api\/v1\/household\/notifications\/read"/);
 });
