@@ -217,3 +217,35 @@ def test_notification_read_is_household_scoped(monkeypatch):
     assert response.status_code == 200
     assert response.json() == {"notification_id": notification_id, "read": True}
     assert captured == {"household_id": HOUSEHOLD_ID, "notification_id": notification_id}
+
+
+def test_notification_read_returns_not_found_for_another_household(monkeypatch):
+    configure_production(monkeypatch)
+    monkeypatch.setattr("app.main.settings.saathi_reminders_enabled", True)
+
+    async def mark_read(self, *, household_id, notification_id):
+        # Repository updates include both notification ID and verified household.
+        assert household_id == HOUSEHOLD_ID
+        assert notification_id == "55555555-5555-4555-8555-555555555555"
+        return False
+
+    monkeypatch.setattr("app.main.SupabaseReminderRepository.mark_read", mark_read)
+    response = TestClient(app).post(
+        "/api/v1/household/notifications/read",
+        headers=headers(),
+        json={"notification_id": "55555555-5555-4555-8555-555555555555"},
+    )
+    assert response.status_code == 404
+    assert response.json()["detail"] == "household_notification_not_found"
+
+
+def test_notification_read_requires_verified_household(monkeypatch):
+    configure_production(monkeypatch)
+    monkeypatch.setattr("app.main.settings.saathi_reminders_enabled", True)
+    response = TestClient(app).post(
+        "/api/v1/household/notifications/read",
+        headers={"X-Saathi-API-Key": "server-token"},
+        json={"notification_id": "55555555-5555-4555-8555-555555555555"},
+    )
+    assert response.status_code == 401
+    assert response.json()["detail"] == "verified_phone_identity_required"
