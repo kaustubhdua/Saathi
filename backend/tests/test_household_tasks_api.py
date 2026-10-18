@@ -249,3 +249,70 @@ def test_notification_read_requires_verified_household(monkeypatch):
     )
     assert response.status_code == 401
     assert response.json()["detail"] == "verified_phone_identity_required"
+
+
+
+def test_task_schedule_rejects_time_too_close_to_now(monkeypatch):
+    configure_production(monkeypatch)
+    monkeypatch.setattr("app.main.settings.saathi_reminders_enabled", True)
+    called = False
+
+    async def create(self, task):
+        nonlocal called
+        called = True
+        return task
+
+    monkeypatch.setattr("app.main.SupabaseTaskRepository.create", create)
+    almost_now = (datetime.now(timezone.utc) + timedelta(seconds=10)).isoformat()
+    response = TestClient(app).post(
+        "/api/v1/household/tasks",
+        headers=headers(),
+        json={"title": "Submit form", "scheduled_callback": almost_now, "timezone_name": "Asia/Kolkata"},
+    )
+    assert response.status_code == 422
+    assert response.json()["detail"] == "reminder_must_be_at_least_one_minute_in_future"
+    assert called is False
+
+
+def test_task_schedule_rejects_time_beyond_one_year(monkeypatch):
+    configure_production(monkeypatch)
+    monkeypatch.setattr("app.main.settings.saathi_reminders_enabled", True)
+    called = False
+
+    async def create(self, task):
+        nonlocal called
+        called = True
+        return task
+
+    monkeypatch.setattr("app.main.SupabaseTaskRepository.create", create)
+    too_far = (datetime.now(timezone.utc) + timedelta(days=366)).isoformat()
+    response = TestClient(app).post(
+        "/api/v1/household/tasks",
+        headers=headers(),
+        json={"title": "Submit form", "scheduled_callback": too_far, "timezone_name": "Asia/Kolkata"},
+    )
+    assert response.status_code == 422
+    assert response.json()["detail"] == "reminder_too_far_in_future"
+    assert called is False
+
+
+def test_notification_list_requires_verified_household(monkeypatch):
+    configure_production(monkeypatch)
+    monkeypatch.setattr("app.main.settings.saathi_reminders_enabled", True)
+    response = TestClient(app).get(
+        "/api/v1/household/notifications",
+        headers={"X-Saathi-API-Key": "server-token"},
+    )
+    assert response.status_code == 401
+    assert response.json()["detail"] == "verified_phone_identity_required"
+
+
+def test_notification_read_rejects_malformed_notification_id(monkeypatch):
+    configure_production(monkeypatch)
+    monkeypatch.setattr("app.main.settings.saathi_reminders_enabled", True)
+    response = TestClient(app).post(
+        "/api/v1/household/notifications/read",
+        headers=headers(),
+        json={"notification_id": "not-a-uuid"},
+    )
+    assert response.status_code == 422
