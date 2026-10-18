@@ -86,5 +86,35 @@ BEGIN
       RAISE;
     END IF;
   END;
+
+  -- Spring-forward DST: 03:00 local is still inside quiet hours, and the
+  -- next allowed 08:00 local resolves to 12:00 UTC after the offset change.
+  INSERT INTO public.saathi_pending_tasks (
+    household_id, title, status, missing_requirements, idempotency_key,
+    scheduled_callback, timezone_name, reminder_status
+  ) VALUES (
+    household_uuid, 'DST spring-forward reminder', 'pending', '{}',
+    'reminder-dst-spring-' || gen_random_uuid()::text,
+    '2026-03-08 06:30:00+00', 'America/New_York', 'scheduled'
+  ) RETURNING id INTO task_uuid;
+
+  SELECT count(*) INTO delivered_count
+  FROM public.saathi_deliver_due_reminders(25, '2026-03-08 07:00:00+00');
+  IF delivered_count <> 0 THEN
+    RAISE EXCEPTION 'test_failed: reminder must defer during DST spring-forward quiet hours';
+  END IF;
+
+  SELECT scheduled_callback INTO scheduled_at
+  FROM public.saathi_pending_tasks WHERE id = task_uuid;
+  IF scheduled_at <> '2026-03-08 12:00:00+00'::timestamptz THEN
+    RAISE EXCEPTION 'test_failed: DST quiet-hour deferral must resolve to 08:00 local after spring-forward';
+  END IF;
+
+  SELECT count(*) INTO delivered_count
+  FROM public.saathi_deliver_due_reminders(25, '2026-03-08 12:00:00+00');
+  IF delivered_count <> 1 THEN
+    RAISE EXCEPTION 'test_failed: DST reminder must deliver at 08:00 local';
+  END IF;
+
 END;
 $reminder_test$;
