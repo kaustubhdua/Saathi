@@ -1,8 +1,9 @@
 """Durable in-app reminder worker.
 
 The worker writes notifications to the database only. It does not send SMS,
-browser push, or phone calls. The migration and feature flags must be enabled
-only after isolated database acceptance and owner approval.
+browser push, or phone calls. Feature flags default off; while disabled, the
+process stays healthy and idle so a separately deployed worker does not crash
+or enter a restart loop before the feature is approved.
 """
 import asyncio
 import os
@@ -43,18 +44,16 @@ async def run_once() -> int:
 
 
 async def run_forever() -> None:
-    interval = max(5, min(int(get_settings().reminder_worker_interval_seconds), 300))
+    # Keep the deployment alive while flags are off. run_once() fails closed,
+    # and checks the flags on every tick so operators can enable it deliberately.
     while True:
+        settings = get_settings()
+        interval = max(5, min(int(settings.reminder_worker_interval_seconds), 300))
         await run_once()
         await asyncio.sleep(interval)
 
 
 def main() -> None:
-    if not _enabled():
-        raise SystemExit(
-            "Reminder worker is disabled. Apply the approved reminder migration, "
-            "then set SAATHI_HOUSEHOLD_FEATURES_ENABLED=true and SAATHI_REMINDERS_ENABLED=true."
-        )
     asyncio.run(run_forever())
 
 
