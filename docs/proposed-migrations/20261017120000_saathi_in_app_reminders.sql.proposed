@@ -8,11 +8,9 @@ ALTER TABLE public.saathi_pending_tasks
   ADD COLUMN IF NOT EXISTS reminder_last_error text NULL
     CHECK (reminder_last_error IS NULL OR length(reminder_last_error) <= 120);
 
-UPDATE public.saathi_pending_tasks
-SET reminder_status = 'scheduled'
-WHERE scheduled_callback IS NOT NULL
-  AND status IN ('pending', 'scheduled')
-  AND reminder_status = 'none';
+-- Existing scheduled tasks are deliberately NOT enrolled automatically.
+-- A reminder is created only when the user explicitly schedules it after this
+-- migration is approved. The default 'none' preserves opt-in semantics.
 
 CREATE INDEX IF NOT EXISTS saathi_pending_tasks_reminder_due_idx
   ON public.saathi_pending_tasks (scheduled_callback)
