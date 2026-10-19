@@ -87,6 +87,28 @@ BEGIN
     END IF;
   END;
 
+  -- Migration must preserve opt-in: a task scheduled before the reminder
+  -- feature existed must not be enrolled or delivered automatically.
+  SELECT reminder_status INTO reminder_status_value
+  FROM public.saathi_pending_tasks
+  WHERE title = 'Legacy task must not be auto-enrolled';
+  IF reminder_status_value <> 'none' THEN
+    RAISE EXCEPTION 'test_failed: legacy task must remain opted out';
+  END IF;
+
+  SELECT count(*) INTO delivered_count
+  FROM public.saathi_deliver_due_reminders(25, '2026-01-02 04:30:00+00');
+  IF delivered_count <> 0 THEN
+    RAISE EXCEPTION 'test_failed: legacy task must not be delivered without opt-in';
+  END IF;
+
+  SELECT count(*) INTO notification_count
+  FROM public.saathi_in_app_notifications
+  WHERE title LIKE '%Legacy task must not be auto-enrolled%';
+  IF notification_count <> 0 THEN
+    RAISE EXCEPTION 'test_failed: legacy task must not create a notification';
+  END IF;
+
   -- Spring-forward DST: 03:00 local is still inside quiet hours, and the
   -- next allowed 08:00 local resolves to 12:00 UTC after the offset change.
   INSERT INTO public.saathi_pending_tasks (
