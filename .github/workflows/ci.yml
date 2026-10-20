@@ -8,6 +8,7 @@ on:
   push:
     branches:
       - main
+      - feat/durable-in-app-reminders
   pull_request:
 
 permissions:
@@ -177,6 +178,12 @@ jobs:
         run: psql -v ON_ERROR_STOP=1 -f docs/proposed-migrations/20261015080000_saathi_household_memberships.sql.proposed
       - name: Test enrollment idempotency and recycled-phone isolation
         run: psql -v ON_ERROR_STOP=1 -f tests/sql/household_membership_acceptance.sql
+      - name: Seed a pre-existing scheduled task before reminder migration
+        run: psql -v ON_ERROR_STOP=1 -f tests/sql/reminder_legacy_fixture.sql
+      - name: Apply proposed in-app reminder migration only in ephemeral CI
+        run: psql -v ON_ERROR_STOP=1 -f docs/proposed-migrations/20261017120000_saathi_in_app_reminders.sql.proposed
+      - name: Test quiet hours, cancellation and idempotent delivery
+        run: psql -v ON_ERROR_STOP=1 -f tests/sql/reminder_acceptance.sql
       - name: Verify service-role access and anonymous denial
         shell: bash
         run: |
