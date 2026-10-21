@@ -15,7 +15,7 @@ class FakeWS:
     async def send(self, value):
         self.sent.append(value)
 
-def test_voice_bridge_uses_injected_pipeline():
+def test_voice_bridge_uses_injected_pipeline(caplog):
     async def run():
         import base64
         pcm=base64.b64encode(b"a"*16000).decode()
@@ -34,7 +34,14 @@ def test_voice_bridge_uses_injected_pipeline():
         assert calls[2][0]=="tts"
         assert ws.sent
 
+    import logging
+    caplog.set_level(logging.INFO, logger="saathi")
     asyncio.run(run())
+    assert '"event":"voice.turn.completed"' in caplog.text
+    assert '"pipeline":"exotel_bounded"' in caplog.text
+    assert '"stt_ms":' in caplog.text
+    assert '"response_ms":' in caplog.text
+    assert '"tts_ms":' in caplog.text
 
 
 def test_voice_bridge_flushes_on_silence_before_max_turn():
