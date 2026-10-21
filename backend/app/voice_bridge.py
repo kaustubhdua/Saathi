@@ -200,20 +200,47 @@ async def run_exotel_realtime_session(
             await asyncio.gather(response_task, return_exceptions=True)
         response_task = None
 
-    async def speak(reply: str) -> None:
+    async def speak(reply: str) -> tuple[float, float]:
         if not stream_sid:
-            return
+            return 0.0, 0.0
+        started = perf_counter()
+        first_audio_ms: float | None = None
         async for chunk in synthesize_stream(reply, sample_rate):
             if chunk and stream_sid:
+                if first_audio_ms is None:
+                    first_audio_ms = round((perf_counter() - started) * 1000, 2)
                 await websocket.send(encode_media(stream_sid, chunk))
+        return first_audio_ms or 0.0, round((perf_counter() - started) * 1000, 2)
 
     async def process_transcript(transcript: str) -> None:
         if not transcript.strip():
             return
+        turn_started = perf_counter()
         await cancel_playback()
+        response_started = perf_counter()
         reply = await respond(transcript)
+        response_ms = round((perf_counter() - response_started) * 1000, 2)
         if reply.strip():
-            await speak(reply)
+            first_audio_ms, tts_ms = await speak(reply)
+            emit_event(
+                "voice.turn.completed",
+                pipeline="exotel_realtime",
+                outcome="spoken" if first_audio_ms else "no_audio",
+                response_ms=response_ms,
+                first_audio_ms=first_audio_ms,
+                tts_ms=tts_ms,
+                total_ms=round((perf_counter() - turn_started) * 1000, 2),
+            )
+        else:
+            emit_event(
+                "voice.turn.completed",
+                pipeline="exotel_realtime",
+                outcome="no_reply",
+                response_ms=response_ms,
+                first_audio_ms=0,
+                tts_ms=0,
+                total_ms=round((perf_counter() - turn_started) * 1000, 2),
+            )
 
     async def start_response(transcript: str) -> None:
         nonlocal response_task
