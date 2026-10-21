@@ -1,6 +1,9 @@
 import json
 import math
+from time import perf_counter
 from typing import Any, Awaitable, Callable
+
+from .observability import emit_event
 
 from .exotel_stream import decode_media, encode_clear, encode_media, parse_start
 
@@ -56,18 +59,52 @@ async def run_exotel_session(
         audio_buffer.clear()
         silent_bytes = 0
         saw_speech = False
+        turn_started = perf_counter()
+        stage_started = perf_counter()
         transcript = await transcribe(pcm, sample_rate)
+        stt_ms = round((perf_counter() - stage_started) * 1000, 2)
         if not transcript.strip():
+            emit_event(
+                "voice.turn.completed",
+                pipeline="exotel_bounded",
+                outcome="no_transcript",
+                stt_ms=stt_ms,
+                response_ms=0,
+                tts_ms=0,
+                total_ms=round((perf_counter() - turn_started) * 1000, 2),
+            )
             return
+        stage_started = perf_counter()
         reply = await respond(transcript)
+        response_ms = round((perf_counter() - stage_started) * 1000, 2)
         if not reply.strip():
+            emit_event(
+                "voice.turn.completed",
+                pipeline="exotel_bounded",
+                outcome="no_reply",
+                stt_ms=stt_ms,
+                response_ms=response_ms,
+                tts_ms=0,
+                total_ms=round((perf_counter() - turn_started) * 1000, 2),
+            )
             return
+        stage_started = perf_counter()
         audio = await synthesize(reply, sample_rate)
+        tts_ms = round((perf_counter() - stage_started) * 1000, 2)
         if stream_sid and audio:
             playback_active = True
             await websocket.send(encode_media(stream_sid, audio))
-            # Exotel can interrupt buffered output when the caller starts speaking again.
-            # The next inbound speech frame clears the remote playback buffer.
+        emit_event(
+            "voice.turn.completed",
+            pipeline="exotel_bounded",
+            outcome="spoken" if audio else "no_audio",
+            stt_ms=stt_ms,
+            response_ms=response_ms,
+            tts_ms=tts_ms,
+            total_ms=round((perf_counter() - turn_started) * 1000, 2),
+        )
+        # Exotel can interrupt buffered output when the caller starts speaking again.
+        # The next inbound speech frame clears the remote playback buffer.
 
 
     async for raw in websocket:
