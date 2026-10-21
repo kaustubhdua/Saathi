@@ -1,0 +1,36 @@
+name: SATARK isolated test preflight
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/satark-isolated-preflight.yml"
+      - "backend/scripts/satark_test_preflight.py"
+
+permissions:
+  contents: read
+
+jobs:
+  isolated-test-preflight:
+    name: isolated-test-preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      SATARK_TEST_SUPABASE_URL: ${{ secrets.SATARK_TEST_SUPABASE_URL }}
+      SATARK_TEST_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SATARK_TEST_SUPABASE_PUBLISHABLE_KEY }}
+      SATARK_TEST_USER_A_EMAIL: ${{ secrets.SATARK_TEST_USER_A_EMAIL }}
+      SATARK_TEST_USER_A_PASSWORD: ${{ secrets.SATARK_TEST_USER_A_PASSWORD }}
+      SATARK_TEST_TENANT_A_ID: ${{ secrets.SATARK_TEST_TENANT_A_ID }}
+      SATARK_TEST_USER_B_EMAIL: ${{ secrets.SATARK_TEST_USER_B_EMAIL }}
+      SATARK_TEST_USER_B_PASSWORD: ${{ secrets.SATARK_TEST_USER_B_PASSWORD }}
+      SATARK_TEST_TENANT_B_ID: ${{ secrets.SATARK_TEST_TENANT_B_ID }}
+      SATARK_TEST_VIEWER_EMAIL: ${{ secrets.SATARK_TEST_VIEWER_EMAIL }}
+      SATARK_TEST_VIEWER_PASSWORD: ${{ secrets.SATARK_TEST_VIEWER_PASSWORD }}
+      SATARK_TEST_VIEWER_TENANT_ID: ${{ secrets.SATARK_TEST_VIEWER_TENANT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate isolated credentials and project identity
+        run: python backend/scripts/satark_test_preflight.py
