@@ -1,0 +1,26 @@
+name: SATARK Offline Wazuh Capture Validator
+
+on:
+  pull_request:
+    paths:
+      - "backend/scripts/satark_validate_wazuh_capture.py"
+      - "backend/tests/test_satark_wazuh_capture_validator.py"
+      - ".github/workflows/satark-offline-wazuh-validator.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  offline-validator-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run offline validator unit tests
+        run: python -m unittest discover -s backend/tests -p 'test_satark_wazuh_capture_validator.py' -v
