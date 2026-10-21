@@ -103,3 +103,77 @@ def test_voice_bridge_clears_playback_when_caller_barges_in():
         await run_exotel_session(ws, transcribe=stt, respond=respond, synthesize=tts)
         assert any(json.loads(item).get("event") == "clear" for item in ws.sent)
     asyncio.run(run())
+
+
+
+def test_realtime_voice_bridge_emits_first_audio_and_turn_telemetry(caplog):
+    import base64
+    import logging
+    from app.voice_bridge import run_exotel_realtime_session
+
+    class FakeRealtimeSTT:
+        def __init__(self):
+            self.events = [
+                {"event": "transcript.final", "text": "नमस्ते"},
+                {"event": "session.end"},
+            ]
+            self.connected_rate = None
+            self.audio = []
+            self.ended = False
+            self.closed = False
+
+        async def connect(self, *, sample_rate):
+            self.connected_rate = sample_rate
+
+        async def receive(self):
+            if self.events:
+                return self.events.pop(0)
+            await asyncio.sleep(0)
+            return {"event": "session.end"}
+
+        async def send_audio(self, pcm):
+            self.audio.append(pcm)
+
+        async def end(self):
+            self.ended = True
+
+        async def close(self):
+            self.closed = True
+
+    async def run():
+        pcm = base64.b64encode(b"\\x00\\x10" * 160).decode()
+        ws = FakeWS([
+            json.dumps({"event": "start", "start": {
+                "stream_sid": "MZ1", "call_sid": "CA1",
+                "media_format": {"sample_rate": "8000"},
+            }}),
+            json.dumps({"event": "media", "media": {"payload": pcm}}),
+            json.dumps({"event": "stop"}),
+        ])
+        stt = FakeRealtimeSTT()
+        async def respond(text):
+            assert text == "नमस्ते"
+            return "नमस्कार"
+        async def synthesize_stream(text, rate):
+            assert text == "नमस्कार"
+            assert rate == 8000
+            yield b"first-audio"
+            yield b"second-audio"
+
+        await run_exotel_realtime_session(
+            ws, stt_session=stt, respond=respond,
+            synthesize_stream=synthesize_stream,
+        )
+        assert stt.connected_rate == 8000
+        assert stt.audio
+        assert stt.ended
+        assert stt.closed
+        assert any(json.loads(item).get("event") == "media" for item in ws.sent)
+
+    caplog.set_level(logging.INFO, logger="saathi")
+    asyncio.run(run())
+    assert '"event":"voice.turn.completed"' in caplog.text
+    assert '"pipeline":"exotel_realtime"' in caplog.text
+    assert '"first_audio_ms":' in caplog.text
+    assert '"tts_ms":' in caplog.text
+    assert '"total_ms":' in caplog.text
