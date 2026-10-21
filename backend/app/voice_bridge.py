@@ -200,9 +200,9 @@ async def run_exotel_realtime_session(
             await asyncio.gather(response_task, return_exceptions=True)
         response_task = None
 
-    async def speak(reply: str) -> tuple[float, float]:
+    async def speak(reply: str) -> tuple[float | None, float]:
         if not stream_sid:
-            return 0.0, 0.0
+            return None, 0.0
         started = perf_counter()
         first_audio_ms: float | None = None
         async for chunk in synthesize_stream(reply, sample_rate):
@@ -210,7 +210,7 @@ async def run_exotel_realtime_session(
                 if first_audio_ms is None:
                     first_audio_ms = round((perf_counter() - started) * 1000, 2)
                 await websocket.send(encode_media(stream_sid, chunk))
-        return first_audio_ms or 0.0, round((perf_counter() - started) * 1000, 2)
+        return first_audio_ms, round((perf_counter() - started) * 1000, 2)
 
     async def process_transcript(transcript: str) -> None:
         if not transcript.strip():
@@ -225,9 +225,9 @@ async def run_exotel_realtime_session(
             emit_event(
                 "voice.turn.completed",
                 pipeline="exotel_realtime",
-                outcome="spoken" if first_audio_ms else "no_audio",
+                outcome="spoken" if first_audio_ms is not None else "no_audio",
                 response_ms=response_ms,
-                first_audio_ms=first_audio_ms,
+                first_audio_ms=first_audio_ms if first_audio_ms is not None else 0,
                 tts_ms=tts_ms,
                 total_ms=round((perf_counter() - turn_started) * 1000, 2),
             )
