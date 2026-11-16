@@ -1,4 +1,5 @@
 from dataclasses import replace
+from datetime import date
 
 from app.orchestrator import _catalogue_scheme_response
 from app.scheme_catalog import get_scheme
@@ -7,6 +8,8 @@ from app.scheme_catalog import get_scheme
 def test_static_scheme_catalogue_is_not_reported_as_live_retrieval():
     scheme = get_scheme("pm-kisan")
     assert scheme is not None
+    # the catalogue's own review date ages out, so pin the check to a record reviewed today
+    scheme = replace(scheme, source_checked_on=date.today().isoformat())
     _, result = _catalogue_scheme_response(scheme)
     assert result.source is not None
     assert result.source.retrieved_at is None

@@ -1,3 +1,4 @@
+from datetime import date
 import asyncio
 import base64
 
@@ -58,7 +59,7 @@ def test_mandi_adapter_maps_government_record(monkeypatch):
             "district": "Sonipat",
             "market": "Sonipat",
             "commodity": "Wheat",
-            "arrival_date": "14/10/2026",
+            "arrival_date": date.today().strftime("%d/%m/%Y"),
             "min_price": "2100",
             "modal_price": "2250",
             "max_price": "2325",
@@ -70,7 +71,7 @@ def test_mandi_adapter_maps_government_record(monkeypatch):
     ))
     assert result.ok is True
     assert result.data["modal_price"] == 2250
-    assert result.data["arrival_date"] == "14/10/2026"
+    assert result.data["arrival_date"] == date.today().strftime("%d/%m/%Y")
     assert result.data["market"] == "Sonipat"
     assert result.source.name == "Government OGD / AGMARKNET"
 
